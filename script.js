@@ -32,6 +32,9 @@ async function loadData() {
     }
 }
 
+// 전역 함수 등록
+window.loadData = loadData;
+
 // 데이터 저장 (IndexedDB는 개별 저장)
 async function savePost(content, estimate, survey, images) {
     console.log('게시글 저장 시작:', { content, estimate, survey, imagesCount: images.length });
@@ -514,6 +517,9 @@ function renderPosts(userType) {
     `;
     }).join('');
 }
+
+// 전역 함수 등록
+window.renderPosts = renderPosts;
 
 // HTML 이스케이프 함수
 function escapeHtml(text) {

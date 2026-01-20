@@ -18,7 +18,7 @@ async function loadMaterials() {
 window.loadMaterials = loadMaterials;
 
 // 탭 전환 함수
-function switchTab(tabType, tabName) {
+async function switchTab(tabType, tabName) {
     // 관리자 탭
     if (tabType === 'admin') {
         document.getElementById('adminConstructionTab').classList.remove('active');
@@ -29,10 +29,14 @@ function switchTab(tabType, tabName) {
         if (tabName === 'construction') {
             document.getElementById('adminConstructionTab').classList.add('active');
             document.getElementById('adminConstructionContent').classList.add('active');
+            // 시공 게시판 데이터 로드
+            await window.loadData();
+            window.renderPosts('admin');
         } else {
             document.getElementById('adminMaterialTab').classList.add('active');
             document.getElementById('adminMaterialContent').classList.add('active');
-            loadMaterials().then(() => renderMaterials('admin'));
+            await loadMaterials();
+            renderMaterials('admin');
         }
     }
     // 사용자 탭
@@ -45,10 +49,14 @@ function switchTab(tabType, tabName) {
         if (tabName === 'construction') {
             document.getElementById('userConstructionTab').classList.add('active');
             document.getElementById('userConstructionContent').classList.add('active');
+            // 시공 게시판 데이터 로드
+            await window.loadData();
+            window.renderPosts('user');
         } else {
             document.getElementById('userMaterialTab').classList.add('active');
             document.getElementById('userMaterialContent').classList.add('active');
-            loadMaterials().then(() => renderMaterials('user'));
+            await loadMaterials();
+            renderMaterials('user');
         }
     }
 }
