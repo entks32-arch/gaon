@@ -109,6 +109,17 @@ function hideAddPostForm() {
     clearForm();
 }
 
+// 사용자 게시글 등록 폼 표시
+function showUserAddPostForm() {
+    document.getElementById('userAddPostForm').style.display = 'block';
+}
+
+// 사용자 게시글 등록 폼 숨기기
+function hideUserAddPostForm() {
+    document.getElementById('userAddPostForm').style.display = 'none';
+    clearUserForm();
+}
+
 // 폼 초기화
 function clearForm() {
     document.getElementById('adminContent').value = '';
@@ -117,10 +128,20 @@ function clearForm() {
     document.getElementById('adminImage').value = '';
 }
 
+// 사용자 폼 초기화
+function clearUserForm() {
+    document.getElementById('userContent').value = '';
+    document.getElementById('userEstimate').value = '';
+    document.getElementById('userSurvey').value = '했음';
+    document.getElementById('userImage').value = '';
+}
+
 // 전역 함수 등록
 window.logout = logout;
 window.showAddPostForm = showAddPostForm;
 window.hideAddPostForm = hideAddPostForm;
+window.showUserAddPostForm = showUserAddPostForm;
+window.hideUserAddPostForm = hideUserAddPostForm;
 
 // 이미지 압축 함수
 function compressImage(file, maxWidth = 800, quality = 0.7) {
@@ -221,6 +242,91 @@ function addPost() {
 
 // 전역 함수 등록
 window.addPost = addPost;
+
+// 사용자 게시글 추가
+function addUserPost() {
+    console.log('사용자 게시글 등록 시작');
+    
+    const content = document.getElementById('userContent').value.trim();
+    const estimate = document.getElementById('userEstimate').value.trim();
+    const survey = document.getElementById('userSurvey').value;
+    const imageInput = document.getElementById('userImage');
+    
+    console.log('입력값:', { content, estimate, survey, filesCount: imageInput.files.length });
+    
+    if (!content) {
+        alert('❌ 시공 내용을 입력하세요.');
+        return;
+    }
+    
+    if (!estimate) {
+        alert('❌ 견적을 입력하세요.');
+        return;
+    }
+    
+    // 이미지 파일 읽기 및 압축
+    const images = [];
+    const files = imageInput.files;
+    
+    if (files.length > 0) {
+        console.log('이미지 파일 처리 시작:', files.length, '개');
+        
+        // 이미지 개수 제한 (최대 5개)
+        if (files.length > 5) {
+            alert('⚠️ 이미지는 최대 5개까지 업로드할 수 있습니다.');
+            return;
+        }
+        
+        const promises = [];
+        
+        for (let i = 0; i < files.length; i++) {
+            promises.push(compressImage(files[i]));
+        }
+        
+        Promise.all(promises)
+            .then(async compressedImages => {
+                console.log('모든 이미지 압축 완료, 저장 시작');
+                await saveUserPost(content, estimate, survey, compressedImages);
+            })
+            .catch(error => {
+                console.error('이미지 압축 실패:', error);
+                alert('❌ 이미지 처리 중 오류가 발생했습니다.');
+            });
+    } else {
+        console.log('이미지 없이 저장');
+        saveUserPost(content, estimate, survey, images);
+    }
+}
+
+// 사용자 게시글 저장
+async function saveUserPost(content, estimate, survey, images) {
+    console.log('사용자 게시글 저장 시작:', { content, estimate, survey, imagesCount: images.length });
+    
+    const post = {
+        id: Date.now(),
+        content: content,
+        estimate: estimate,
+        survey: survey,
+        images: images,
+        date: new Date().toLocaleString('ko-KR')
+    };
+    
+    try {
+        await window.postDB.addPost(post);
+        await loadData(); // 목록 새로고침
+        console.log('사용자 게시글 저장 완료');
+        
+        alert('✅ 게시글이 등록되었습니다.');
+        hideUserAddPostForm();
+        renderPosts('user');
+    } catch (error) {
+        console.error('사용자 게시글 저장 실패:', error);
+        alert('❌ 게시글 저장 중 오류가 발생했습니다.');
+    }
+}
+
+// 전역 함수 등록
+window.addUserPost = addUserPost;
 
 // 게시글 삭제
 async function deletePost(postId) {
@@ -531,6 +637,23 @@ document.addEventListener('DOMContentLoaded', function() {
     
     if (hideAddPostButton) {
         hideAddPostButton.addEventListener('click', hideAddPostForm);
+    }
+    
+    // 사용자 버튼들
+    const userShowAddPostButton = document.getElementById('userShowAddPostButton');
+    const userAddPostButton = document.getElementById('userAddPostButton');
+    const userHideAddPostButton = document.getElementById('userHideAddPostButton');
+    
+    if (userShowAddPostButton) {
+        userShowAddPostButton.addEventListener('click', showUserAddPostForm);
+    }
+    
+    if (userAddPostButton) {
+        userAddPostButton.addEventListener('click', addUserPost);
+    }
+    
+    if (userHideAddPostButton) {
+        userHideAddPostButton.addEventListener('click', hideUserAddPostForm);
     }
     
     // 검색 입력
