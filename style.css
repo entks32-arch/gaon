@@ -28,6 +28,24 @@ body {
     padding: 20px;
 }
 
+.login-logo {
+    width: 200px;
+    height: auto;
+    margin-bottom: 20px;
+    animation: fadeIn 1s ease-in;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
 .login-container h1 {
     color: white;
     font-size: 2.5em;
@@ -98,9 +116,21 @@ body {
     align-items: center;
 }
 
+.header-logo-title {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
+
+.header-logo {
+    width: 60px;
+    height: auto;
+}
+
 .header h1 {
     color: #333;
     font-size: 1.8em;
+    margin: 0;
 }
 
 .header-actions {
@@ -459,9 +489,22 @@ body {
         gap: 15px;
         text-align: center;
     }
+    
+    .header-logo-title {
+        flex-direction: column;
+        gap: 10px;
+    }
+    
+    .header-logo {
+        width: 50px;
+    }
 
     .header h1 {
         font-size: 1.5em;
+    }
+    
+    .login-logo {
+        width: 150px;
     }
 
     .post-details {
