@@ -5,10 +5,6 @@ let materials = [];
 
 // 자재 데이터 로드
 async function loadMaterials() {
-    if (!dbInitialized) {
-        await initDatabase();
-    }
-    
     try {
         materials = await window.postDB.getAllMaterials();
         console.log('자재 데이터 로드 완료:', materials.length, '개');
@@ -17,6 +13,9 @@ async function loadMaterials() {
         materials = [];
     }
 }
+
+// 전역 함수 등록
+window.loadMaterials = loadMaterials;
 
 // 탭 전환 함수
 function switchTab(tabType, tabName) {
@@ -338,6 +337,9 @@ function renderMaterials(userType) {
     `;
     }).join('');
 }
+
+// 전역 함수 등록
+window.renderMaterials = renderMaterials;
 
 // 자재 이미지 모달
 function showMaterialImageById(materialId, imageIndex) {

@@ -111,16 +111,16 @@ async function goToConstructionBoard() {
 async function goToMaterialBoard() {
     if (currentUser === 'admin') {
         showScreen('adminScreen');
-        await loadMaterials();
-        renderMaterials('admin');
         // 자재 게시판 탭 활성화
         switchTab('admin', 'material');
+        await loadMaterials();
+        renderMaterials('admin');
     } else {
         showScreen('userScreen');
-        await loadMaterials();
-        renderMaterials('user');
         // 자재 게시판 탭 활성화
         switchTab('user', 'material');
+        await loadMaterials();
+        renderMaterials('user');
     }
 }
 
