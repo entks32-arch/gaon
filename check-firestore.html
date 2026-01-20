@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>Firestore 직접 확인</title>
+</head>
+<body>
+    <h1>Firestore 데이터 직접 확인</h1>
+    <button id="checkBtn">데이터 조회</button>
+    <button id="addBtn">테스트 데이터 추가</button>
+    <pre id="result"></pre>
+
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js';
+        import { 
+            getFirestore, 
+            collection, 
+            addDoc, 
+            getDocs
+        } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js';
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyBFfMMAk11XI95zPoBxsfl4olIwypNJAxk",
+            authDomain: "gaondi.firebaseapp.com",
+            projectId: "gaondi",
+            storageBucket: "gaondi.firebasestorage.app",
+            messagingSenderId: "346202871348",
+            appId: "1:346202871348:web:49d8bae30af5200e631c61",
+            measurementId: "G-HE89RPBY84"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const result = document.getElementById('result');
+
+        document.getElementById('checkBtn').addEventListener('click', async () => {
+            try {
+                result.textContent = '데이터 조회 중...\n';
+                const querySnapshot = await getDocs(collection(db, 'posts'));
+                
+                result.textContent += `총 ${querySnapshot.size}개의 게시글이 있습니다.\n\n`;
+                
+                querySnapshot.forEach((doc) => {
+                    result.textContent += `ID: ${doc.id}\n`;
+                    result.textContent += JSON.stringify(doc.data(), null, 2) + '\n\n';
+                });
+                
+                if (querySnapshot.size === 0) {
+                    result.textContent += '게시글이 없습니다.';
+                }
+            } catch (error) {
+                result.textContent = `에러: ${error.message}\n${error.stack}`;
+                console.error(error);
+            }
+        });
+
+        document.getElementById('addBtn').addEventListener('click', async () => {
+            try {
+                result.textContent = '데이터 추가 중...\n';
+                
+                const testPost = {
+                    id: Date.now(),
+                    content: '직접 테스트 게시글',
+                    estimate: '200만원',
+                    survey: '했음',
+                    images: [],
+                    date: new Date().toLocaleString('ko-KR')
+                };
+                
+                const docRef = await addDoc(collection(db, 'posts'), testPost);
+                result.textContent += `성공! 문서 ID: ${docRef.id}\n`;
+                result.textContent += JSON.stringify(testPost, null, 2);
+                
+            } catch (error) {
+                result.textContent = `에러: ${error.message}\n${error.stack}`;
+                console.error(error);
+            }
+        });
+    </script>
+</body>
+</html>
