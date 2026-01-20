@@ -25,13 +25,22 @@
         <div class="header">
             <div class="header-logo-title">
                 <img src="logo.png" alt="가온 로고" class="header-logo">
-                <h1>시공 게시판 - 관리자</h1>
+                <h1>게시판 관리 - 관리자</h1>
             </div>
             <div class="header-actions">
                 <span class="user-info">👔 관리자</span>
                 <button class="btn-logout" id="adminLogoutButton">로그아웃</button>
             </div>
         </div>
+
+        <!-- 탭 메뉴 -->
+        <div class="tab-menu">
+            <button class="tab-button active" id="adminConstructionTab">🏗️ 시공 게시판</button>
+            <button class="tab-button" id="adminMaterialTab">📦 자재 게시판</button>
+        </div>
+
+        <!-- 시공 게시판 컨텐츠 -->
+        <div id="adminConstructionContent" class="tab-content active">
 
         <div class="container">
             <div class="action-buttons">
@@ -83,6 +92,51 @@
             <!-- 게시글 목록 -->
             <div id="adminPostList" class="post-list"></div>
         </div>
+        </div>
+
+        <!-- 자재 게시판 컨텐츠 -->
+        <div id="adminMaterialContent" class="tab-content">
+        <div class="container">
+            <div class="action-buttons">
+                <button id="showAddMaterialButton" class="btn-primary">➕ 자재 등록</button>
+                <button id="clearAllMaterialButton" class="btn-warning">🗑️ 전체 자재 초기화</button>
+            </div>
+
+            <!-- 자재 등록 폼 -->
+            <div id="addMaterialForm" class="post-form" style="display: none;">
+                <h3>자재 등록</h3>
+                <div class="form-group">
+                    <label>자재명</label>
+                    <input type="text" id="adminMaterialName" placeholder="예: 타일, 벽지, 페인트 등" />
+                </div>
+                <div class="form-group">
+                    <label>자재 설명</label>
+                    <textarea id="adminMaterialDesc" rows="4" placeholder="자재에 대한 상세 설명을 입력하세요"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>금액</label>
+                    <input type="text" id="adminMaterialPrice" placeholder="예: 50,000원" />
+                </div>
+                <div class="form-group">
+                    <label>이미지 첨부 (최대 5개, 자동 압축됨)</label>
+                    <input type="file" id="adminMaterialImage" accept="image/*" multiple />
+                    <small class="form-hint">💡 이미지는 자동으로 압축되어 저장됩니다</small>
+                </div>
+                <div class="form-actions">
+                    <button id="addMaterialButton" class="btn-primary">등록</button>
+                    <button id="hideMaterialButton" class="btn-secondary">취소</button>
+                </div>
+            </div>
+
+            <!-- 검색 -->
+            <div class="search-box">
+                <input type="text" id="adminMaterialSearchInput" placeholder="🔍 자재명, 설명, 금액으로 검색..." />
+            </div>
+
+            <!-- 자재 목록 -->
+            <div id="adminMaterialList" class="post-list"></div>
+        </div>
+        </div>
     </div>
 
     <!-- 사용자 화면 -->
@@ -90,13 +144,22 @@
         <div class="header">
             <div class="header-logo-title">
                 <img src="logo.png" alt="가온 로고" class="header-logo">
-                <h1>시공 게시판</h1>
+                <h1>게시판</h1>
             </div>
             <div class="header-actions">
                 <span class="user-info">👤 사용자</span>
                 <button class="btn-logout" id="userLogoutButton">로그아웃</button>
             </div>
         </div>
+
+        <!-- 탭 메뉴 -->
+        <div class="tab-menu">
+            <button class="tab-button active" id="userConstructionTab">🏗️ 시공 게시판</button>
+            <button class="tab-button" id="userMaterialTab">📦 자재 게시판</button>
+        </div>
+
+        <!-- 시공 게시판 컨텐츠 -->
+        <div id="userConstructionContent" class="tab-content active">
 
         <div class="container">
             <div class="action-buttons">
@@ -139,6 +202,50 @@
 
             <!-- 게시글 목록 -->
             <div id="userPostList" class="post-list"></div>
+        </div>
+        </div>
+
+        <!-- 자재 게시판 컨텐츠 -->
+        <div id="userMaterialContent" class="tab-content">
+        <div class="container">
+            <div class="action-buttons">
+                <button id="userShowAddMaterialButton" class="btn-primary">➕ 자재 등록</button>
+            </div>
+
+            <!-- 자재 등록 폼 -->
+            <div id="userAddMaterialForm" class="post-form" style="display: none;">
+                <h3>자재 등록</h3>
+                <div class="form-group">
+                    <label>자재명</label>
+                    <input type="text" id="userMaterialName" placeholder="예: 타일, 벽지, 페인트 등" />
+                </div>
+                <div class="form-group">
+                    <label>자재 설명</label>
+                    <textarea id="userMaterialDesc" rows="4" placeholder="자재에 대한 상세 설명을 입력하세요"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>금액</label>
+                    <input type="text" id="userMaterialPrice" placeholder="예: 50,000원" />
+                </div>
+                <div class="form-group">
+                    <label>이미지 첨부 (최대 5개, 자동 압축됨)</label>
+                    <input type="file" id="userMaterialImage" accept="image/*" multiple />
+                    <small class="form-hint">💡 이미지는 자동으로 압축되어 저장됩니다</small>
+                </div>
+                <div class="form-actions">
+                    <button id="userAddMaterialButton" class="btn-primary">등록</button>
+                    <button id="userHideMaterialButton" class="btn-secondary">취소</button>
+                </div>
+            </div>
+
+            <!-- 검색 -->
+            <div class="search-box">
+                <input type="text" id="userMaterialSearchInput" placeholder="🔍 자재명, 설명, 금액으로 검색..." />
+            </div>
+
+            <!-- 자재 목록 -->
+            <div id="userMaterialList" class="post-list"></div>
+        </div>
         </div>
     </div>
 

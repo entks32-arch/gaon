@@ -2,14 +2,15 @@
 class PostDatabase {
     constructor() {
         this.dbName = 'ConstructionBoardDB';
-        this.storeName = 'posts';
+        this.postStoreName = 'posts';
+        this.materialStoreName = 'materials';
         this.db = null;
     }
 
     // 데이터베이스 초기화
     async init() {
         return new Promise((resolve, reject) => {
-            const request = indexedDB.open(this.dbName, 1);
+            const request = indexedDB.open(this.dbName, 2); // 버전 2로 업그레이드
 
             request.onerror = () => {
                 console.error('데이터베이스 열기 실패:', request.error);
@@ -25,14 +26,20 @@ class PostDatabase {
             request.onupgradeneeded = (event) => {
                 const db = event.target.result;
                 
-                // 기존 스토어가 있으면 삭제
-                if (db.objectStoreNames.contains(this.storeName)) {
-                    db.deleteObjectStore(this.storeName);
+                // 시공 게시글 스토어
+                if (!db.objectStoreNames.contains(this.postStoreName)) {
+                    const postStore = db.createObjectStore(this.postStoreName, { keyPath: 'id' });
+                    postStore.createIndex('date', 'date', { unique: false });
+                    console.log('시공 게시글 스토어 생성 완료');
                 }
                 
-                // 새 스토어 생성
-                const objectStore = db.createObjectStore(this.storeName, { keyPath: 'id' });
-                objectStore.createIndex('date', 'date', { unique: false });
+                // 자재 스토어
+                if (!db.objectStoreNames.contains(this.materialStoreName)) {
+                    const materialStore = db.createObjectStore(this.materialStoreName, { keyPath: 'id' });
+                    materialStore.createIndex('date', 'date', { unique: false });
+                    materialStore.createIndex('name', 'name', { unique: false });
+                    console.log('자재 스토어 생성 완료');
+                }
                 
                 console.log('데이터베이스 스키마 생성 완료');
             };
@@ -42,8 +49,8 @@ class PostDatabase {
     // 모든 게시글 가져오기
     async getAllPosts() {
         return new Promise((resolve, reject) => {
-            const transaction = this.db.transaction([this.storeName], 'readonly');
-            const objectStore = transaction.objectStore(this.storeName);
+            const transaction = this.db.transaction([this.postStoreName], 'readonly');
+            const objectStore = transaction.objectStore(this.postStoreName);
             const request = objectStore.getAll();
 
             request.onsuccess = () => {
@@ -61,11 +68,33 @@ class PostDatabase {
         });
     }
 
+    // 모든 자재 가져오기
+    async getAllMaterials() {
+        return new Promise((resolve, reject) => {
+            const transaction = this.db.transaction([this.materialStoreName], 'readonly');
+            const objectStore = transaction.objectStore(this.materialStoreName);
+            const request = objectStore.getAll();
+
+            request.onsuccess = () => {
+                const materials = request.result || [];
+                // 날짜순 정렬 (최신순)
+                materials.sort((a, b) => b.id - a.id);
+                console.log('자재 로드 완료:', materials.length, '개');
+                resolve(materials);
+            };
+
+            request.onerror = () => {
+                console.error('자재 로드 실패:', request.error);
+                reject(request.error);
+            };
+        });
+    }
+
     // 게시글 추가
     async addPost(post) {
         return new Promise((resolve, reject) => {
-            const transaction = this.db.transaction([this.storeName], 'readwrite');
-            const objectStore = transaction.objectStore(this.storeName);
+            const transaction = this.db.transaction([this.postStoreName], 'readwrite');
+            const objectStore = transaction.objectStore(this.postStoreName);
             const request = objectStore.add(post);
 
             request.onsuccess = () => {
@@ -80,11 +109,30 @@ class PostDatabase {
         });
     }
 
+    // 자재 추가
+    async addMaterial(material) {
+        return new Promise((resolve, reject) => {
+            const transaction = this.db.transaction([this.materialStoreName], 'readwrite');
+            const objectStore = transaction.objectStore(this.materialStoreName);
+            const request = objectStore.add(material);
+
+            request.onsuccess = () => {
+                console.log('자재 저장 성공:', material.id);
+                resolve(material.id);
+            };
+
+            request.onerror = () => {
+                console.error('자재 저장 실패:', request.error);
+                reject(request.error);
+            };
+        });
+    }
+
     // 게시글 삭제
     async deletePost(postId) {
         return new Promise((resolve, reject) => {
-            const transaction = this.db.transaction([this.storeName], 'readwrite');
-            const objectStore = transaction.objectStore(this.storeName);
+            const transaction = this.db.transaction([this.postStoreName], 'readwrite');
+            const objectStore = transaction.objectStore(this.postStoreName);
             const request = objectStore.delete(postId);
 
             request.onsuccess = () => {
@@ -99,20 +147,58 @@ class PostDatabase {
         });
     }
 
-    // 모든 데이터 삭제
-    async clearAll() {
+    // 자재 삭제
+    async deleteMaterial(materialId) {
         return new Promise((resolve, reject) => {
-            const transaction = this.db.transaction([this.storeName], 'readwrite');
-            const objectStore = transaction.objectStore(this.storeName);
-            const request = objectStore.clear();
+            const transaction = this.db.transaction([this.materialStoreName], 'readwrite');
+            const objectStore = transaction.objectStore(this.materialStoreName);
+            const request = objectStore.delete(materialId);
 
             request.onsuccess = () => {
-                console.log('모든 데이터 삭제 완료');
+                console.log('자재 삭제 성공:', materialId);
                 resolve();
             };
 
             request.onerror = () => {
-                console.error('데이터 삭제 실패:', request.error);
+                console.error('자재 삭제 실패:', request.error);
+                reject(request.error);
+            };
+        });
+    }
+
+    // 모든 게시글 삭제
+    async clearAllPosts() {
+        return new Promise((resolve, reject) => {
+            const transaction = this.db.transaction([this.postStoreName], 'readwrite');
+            const objectStore = transaction.objectStore(this.postStoreName);
+            const request = objectStore.clear();
+
+            request.onsuccess = () => {
+                console.log('모든 게시글 삭제 완료');
+                resolve();
+            };
+
+            request.onerror = () => {
+                console.error('게시글 삭제 실패:', request.error);
+                reject(request.error);
+            };
+        });
+    }
+
+    // 모든 자재 삭제
+    async clearAllMaterials() {
+        return new Promise((resolve, reject) => {
+            const transaction = this.db.transaction([this.materialStoreName], 'readwrite');
+            const objectStore = transaction.objectStore(this.materialStoreName);
+            const request = objectStore.clear();
+
+            request.onsuccess = () => {
+                console.log('모든 자재 삭제 완료');
+                resolve();
+            };
+
+            request.onerror = () => {
+                console.error('자재 삭제 실패:', request.error);
                 reject(request.error);
             };
         });
