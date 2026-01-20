@@ -1,222 +1,198 @@
-// IndexedDB 관리 모듈
+// Firebase Firestore 데이터베이스 관리 모듈
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js';
+import { 
+    getFirestore, 
+    collection, 
+    addDoc, 
+    getDocs, 
+    deleteDoc, 
+    doc,
+    query,
+    orderBy,
+    Timestamp
+} from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js';
+
+// Firebase 설정
+const firebaseConfig = {
+    apiKey: "AIzaSyBFfMMAk11XI95zPoBxsfl4olIwypNJAxk",
+    authDomain: "gaondi.firebaseapp.com",
+    projectId: "gaondi",
+    storageBucket: "gaondi.firebasestorage.app",
+    messagingSenderId: "346202871348",
+    appId: "1:346202871348:web:49d8bae30af5200e631c61",
+    measurementId: "G-HE89RPBY84"
+};
+
+// Firebase 초기화
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+// Firestore 데이터베이스 관리 클래스
 class PostDatabase {
     constructor() {
-        this.dbName = 'ConstructionBoardDB';
-        this.postStoreName = 'posts';
-        this.materialStoreName = 'materials';
-        this.db = null;
+        this.db = db;
+        this.postsCollection = 'posts';
+        this.materialsCollection = 'materials';
+        console.log('Firebase Firestore 초기화 완료');
     }
 
-    // 데이터베이스 초기화
+    // 데이터베이스 초기화 (호환성을 위해 유지)
     async init() {
-        return new Promise((resolve, reject) => {
-            const request = indexedDB.open(this.dbName, 2); // 버전 2로 업그레이드
-
-            request.onerror = () => {
-                console.error('데이터베이스 열기 실패:', request.error);
-                reject(request.error);
-            };
-
-            request.onsuccess = () => {
-                this.db = request.result;
-                console.log('데이터베이스 연결 성공');
-                resolve(this.db);
-            };
-
-            request.onupgradeneeded = (event) => {
-                const db = event.target.result;
-                
-                // 시공 게시글 스토어
-                if (!db.objectStoreNames.contains(this.postStoreName)) {
-                    const postStore = db.createObjectStore(this.postStoreName, { keyPath: 'id' });
-                    postStore.createIndex('date', 'date', { unique: false });
-                    console.log('시공 게시글 스토어 생성 완료');
-                }
-                
-                // 자재 스토어
-                if (!db.objectStoreNames.contains(this.materialStoreName)) {
-                    const materialStore = db.createObjectStore(this.materialStoreName, { keyPath: 'id' });
-                    materialStore.createIndex('date', 'date', { unique: false });
-                    materialStore.createIndex('name', 'name', { unique: false });
-                    console.log('자재 스토어 생성 완료');
-                }
-                
-                console.log('데이터베이스 스키마 생성 완료');
-            };
-        });
+        console.log('Firebase Firestore 연결 성공');
+        return Promise.resolve(true);
     }
 
     // 모든 게시글 가져오기
     async getAllPosts() {
-        return new Promise((resolve, reject) => {
-            const transaction = this.db.transaction([this.postStoreName], 'readonly');
-            const objectStore = transaction.objectStore(this.postStoreName);
-            const request = objectStore.getAll();
-
-            request.onsuccess = () => {
-                const posts = request.result || [];
-                // 날짜순 정렬 (최신순)
-                posts.sort((a, b) => b.id - a.id);
-                console.log('게시글 로드 완료:', posts.length, '개');
-                resolve(posts);
-            };
-
-            request.onerror = () => {
-                console.error('게시글 로드 실패:', request.error);
-                reject(request.error);
-            };
-        });
+        try {
+            const q = query(collection(this.db, this.postsCollection), orderBy('id', 'desc'));
+            const querySnapshot = await getDocs(q);
+            
+            const posts = [];
+            querySnapshot.forEach((doc) => {
+                posts.push({
+                    firestoreId: doc.id,
+                    ...doc.data()
+                });
+            });
+            
+            console.log('게시글 로드 완료:', posts.length, '개');
+            return posts;
+        } catch (error) {
+            console.error('게시글 로드 실패:', error);
+            return [];
+        }
     }
 
     // 모든 자재 가져오기
     async getAllMaterials() {
-        return new Promise((resolve, reject) => {
-            const transaction = this.db.transaction([this.materialStoreName], 'readonly');
-            const objectStore = transaction.objectStore(this.materialStoreName);
-            const request = objectStore.getAll();
-
-            request.onsuccess = () => {
-                const materials = request.result || [];
-                // 날짜순 정렬 (최신순)
-                materials.sort((a, b) => b.id - a.id);
-                console.log('자재 로드 완료:', materials.length, '개');
-                resolve(materials);
-            };
-
-            request.onerror = () => {
-                console.error('자재 로드 실패:', request.error);
-                reject(request.error);
-            };
-        });
+        try {
+            const q = query(collection(this.db, this.materialsCollection), orderBy('id', 'desc'));
+            const querySnapshot = await getDocs(q);
+            
+            const materials = [];
+            querySnapshot.forEach((doc) => {
+                materials.push({
+                    firestoreId: doc.id,
+                    ...doc.data()
+                });
+            });
+            
+            console.log('자재 로드 완료:', materials.length, '개');
+            return materials;
+        } catch (error) {
+            console.error('자재 로드 실패:', error);
+            return [];
+        }
     }
 
     // 게시글 추가
     async addPost(post) {
-        return new Promise((resolve, reject) => {
-            const transaction = this.db.transaction([this.postStoreName], 'readwrite');
-            const objectStore = transaction.objectStore(this.postStoreName);
-            const request = objectStore.add(post);
-
-            request.onsuccess = () => {
-                console.log('게시글 저장 성공:', post.id);
-                resolve(post.id);
-            };
-
-            request.onerror = () => {
-                console.error('게시글 저장 실패:', request.error);
-                reject(request.error);
-            };
-        });
+        try {
+            const docRef = await addDoc(collection(this.db, this.postsCollection), post);
+            console.log('게시글 저장 성공:', docRef.id);
+            return docRef.id;
+        } catch (error) {
+            console.error('게시글 저장 실패:', error);
+            throw error;
+        }
     }
 
     // 자재 추가
     async addMaterial(material) {
-        return new Promise((resolve, reject) => {
-            const transaction = this.db.transaction([this.materialStoreName], 'readwrite');
-            const objectStore = transaction.objectStore(this.materialStoreName);
-            const request = objectStore.add(material);
-
-            request.onsuccess = () => {
-                console.log('자재 저장 성공:', material.id);
-                resolve(material.id);
-            };
-
-            request.onerror = () => {
-                console.error('자재 저장 실패:', request.error);
-                reject(request.error);
-            };
-        });
+        try {
+            const docRef = await addDoc(collection(this.db, this.materialsCollection), material);
+            console.log('자재 저장 성공:', docRef.id);
+            return docRef.id;
+        } catch (error) {
+            console.error('자재 저장 실패:', error);
+            throw error;
+        }
     }
 
     // 게시글 삭제
     async deletePost(postId) {
-        return new Promise((resolve, reject) => {
-            const transaction = this.db.transaction([this.postStoreName], 'readwrite');
-            const objectStore = transaction.objectStore(this.postStoreName);
-            const request = objectStore.delete(postId);
-
-            request.onsuccess = () => {
+        try {
+            // firestoreId가 있으면 사용, 없으면 id 사용
+            const posts = await this.getAllPosts();
+            const post = posts.find(p => p.id === postId);
+            
+            if (post && post.firestoreId) {
+                await deleteDoc(doc(this.db, this.postsCollection, post.firestoreId));
                 console.log('게시글 삭제 성공:', postId);
-                resolve();
-            };
-
-            request.onerror = () => {
-                console.error('게시글 삭제 실패:', request.error);
-                reject(request.error);
-            };
-        });
+            } else {
+                throw new Error('게시글을 찾을 수 없습니다.');
+            }
+        } catch (error) {
+            console.error('게시글 삭제 실패:', error);
+            throw error;
+        }
     }
 
     // 자재 삭제
     async deleteMaterial(materialId) {
-        return new Promise((resolve, reject) => {
-            const transaction = this.db.transaction([this.materialStoreName], 'readwrite');
-            const objectStore = transaction.objectStore(this.materialStoreName);
-            const request = objectStore.delete(materialId);
-
-            request.onsuccess = () => {
+        try {
+            // firestoreId가 있으면 사용, 없으면 id 사용
+            const materials = await this.getAllMaterials();
+            const material = materials.find(m => m.id === materialId);
+            
+            if (material && material.firestoreId) {
+                await deleteDoc(doc(this.db, this.materialsCollection, material.firestoreId));
                 console.log('자재 삭제 성공:', materialId);
-                resolve();
-            };
-
-            request.onerror = () => {
-                console.error('자재 삭제 실패:', request.error);
-                reject(request.error);
-            };
-        });
+            } else {
+                throw new Error('자재를 찾을 수 없습니다.');
+            }
+        } catch (error) {
+            console.error('자재 삭제 실패:', error);
+            throw error;
+        }
     }
 
     // 모든 게시글 삭제
     async clearAllPosts() {
-        return new Promise((resolve, reject) => {
-            const transaction = this.db.transaction([this.postStoreName], 'readwrite');
-            const objectStore = transaction.objectStore(this.postStoreName);
-            const request = objectStore.clear();
-
-            request.onsuccess = () => {
-                console.log('모든 게시글 삭제 완료');
-                resolve();
-            };
-
-            request.onerror = () => {
-                console.error('게시글 삭제 실패:', request.error);
-                reject(request.error);
-            };
-        });
+        try {
+            const querySnapshot = await getDocs(collection(this.db, this.postsCollection));
+            const deletePromises = [];
+            
+            querySnapshot.forEach((document) => {
+                deletePromises.push(deleteDoc(doc(this.db, this.postsCollection, document.id)));
+            });
+            
+            await Promise.all(deletePromises);
+            console.log('모든 게시글 삭제 완료');
+        } catch (error) {
+            console.error('게시글 삭제 실패:', error);
+            throw error;
+        }
     }
 
     // 모든 자재 삭제
     async clearAllMaterials() {
-        return new Promise((resolve, reject) => {
-            const transaction = this.db.transaction([this.materialStoreName], 'readwrite');
-            const objectStore = transaction.objectStore(this.materialStoreName);
-            const request = objectStore.clear();
-
-            request.onsuccess = () => {
-                console.log('모든 자재 삭제 완료');
-                resolve();
-            };
-
-            request.onerror = () => {
-                console.error('자재 삭제 실패:', request.error);
-                reject(request.error);
-            };
-        });
+        try {
+            const querySnapshot = await getDocs(collection(this.db, this.materialsCollection));
+            const deletePromises = [];
+            
+            querySnapshot.forEach((document) => {
+                deletePromises.push(deleteDoc(doc(this.db, this.materialsCollection, document.id)));
+            });
+            
+            await Promise.all(deletePromises);
+            console.log('모든 자재 삭제 완료');
+        } catch (error) {
+            console.error('자재 삭제 실패:', error);
+            throw error;
+        }
     }
 
-    // 데이터베이스 크기 추정
+    // 저장 공간 정보 (Firestore는 클라우드이므로 제한 없음)
     async getStorageEstimate() {
-        if ('storage' in navigator && 'estimate' in navigator.storage) {
-            const estimate = await navigator.storage.estimate();
-            return {
-                usage: estimate.usage,
-                quota: estimate.quota,
-                usageInMB: (estimate.usage / (1024 * 1024)).toFixed(2),
-                quotaInMB: (estimate.quota / (1024 * 1024)).toFixed(2),
-                percentUsed: ((estimate.usage / estimate.quota) * 100).toFixed(2)
-            };
-        }
-        return null;
+        return {
+            usage: 0,
+            quota: Infinity,
+            usageInMB: '0.00',
+            quotaInMB: '무제한',
+            percentUsed: '0.00'
+        };
     }
 }
 
