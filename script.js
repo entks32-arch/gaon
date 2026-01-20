@@ -66,15 +66,10 @@ async function login() {
     
     if (password === '8810') {
         currentUser = 'admin';
-        showScreen('adminScreen');
-        await loadData();
-        renderPosts('admin');
-        await updateStorageInfo();
+        showBoardSelection('admin');
     } else if (password === '1478') {
         currentUser = 'user';
-        showScreen('userScreen');
-        await loadData();
-        renderPosts('user');
+        showBoardSelection('user');
     } else {
         alert('❌ 비밀번호가 올바르지 않습니다.');
     }
@@ -82,8 +77,58 @@ async function login() {
     document.getElementById('loginPassword').value = '';
 }
 
+// 게시판 선택 화면 표시
+function showBoardSelection(userType) {
+    showScreen('boardSelectionScreen');
+    
+    const subtitle = document.getElementById('selectionUserType');
+    if (userType === 'admin') {
+        subtitle.textContent = '👔 관리자로 로그인하셨습니다';
+    } else {
+        subtitle.textContent = '👤 사용자로 로그인하셨습니다';
+    }
+}
+
+// 시공 게시판으로 이동
+async function goToConstructionBoard() {
+    if (currentUser === 'admin') {
+        showScreen('adminScreen');
+        await loadData();
+        renderPosts('admin');
+        await updateStorageInfo();
+        // 시공 게시판 탭 활성화
+        switchTab('admin', 'construction');
+    } else {
+        showScreen('userScreen');
+        await loadData();
+        renderPosts('user');
+        // 시공 게시판 탭 활성화
+        switchTab('user', 'construction');
+    }
+}
+
+// 자재 게시판으로 이동
+async function goToMaterialBoard() {
+    if (currentUser === 'admin') {
+        showScreen('adminScreen');
+        await loadMaterials();
+        renderMaterials('admin');
+        // 자재 게시판 탭 활성화
+        switchTab('admin', 'material');
+    } else {
+        showScreen('userScreen');
+        await loadMaterials();
+        renderMaterials('user');
+        // 자재 게시판 탭 활성화
+        switchTab('user', 'material');
+    }
+}
+
 // 전역 접근을 위해 window 객체에 등록
 window.login = login;
+window.showBoardSelection = showBoardSelection;
+window.goToConstructionBoard = goToConstructionBoard;
+window.goToMaterialBoard = goToMaterialBoard;
 
 // 로그아웃
 function logout() {
@@ -608,6 +653,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // 로그아웃 버튼
     const adminLogoutButton = document.getElementById('adminLogoutButton');
     const userLogoutButton = document.getElementById('userLogoutButton');
+    const selectionLogoutButton = document.getElementById('selectionLogoutButton');
     
     if (adminLogoutButton) {
         adminLogoutButton.addEventListener('click', logout);
@@ -615,6 +661,22 @@ document.addEventListener('DOMContentLoaded', function() {
     
     if (userLogoutButton) {
         userLogoutButton.addEventListener('click', logout);
+    }
+    
+    if (selectionLogoutButton) {
+        selectionLogoutButton.addEventListener('click', logout);
+    }
+    
+    // 게시판 선택 버튼
+    const selectConstructionBoard = document.getElementById('selectConstructionBoard');
+    const selectMaterialBoard = document.getElementById('selectMaterialBoard');
+    
+    if (selectConstructionBoard) {
+        selectConstructionBoard.addEventListener('click', goToConstructionBoard);
+    }
+    
+    if (selectMaterialBoard) {
+        selectMaterialBoard.addEventListener('click', goToMaterialBoard);
     }
     
     // 관리자 버튼들

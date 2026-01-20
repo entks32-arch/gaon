@@ -216,6 +216,92 @@ body {
     background: #e0a800;
 }
 
+/* 게시판 선택 화면 */
+.selection-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 40px 20px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.selection-logo {
+    width: 150px;
+    height: auto;
+    margin-bottom: 20px;
+    animation: fadeIn 1s ease-in;
+}
+
+.selection-container h1 {
+    color: white;
+    font-size: 2.2em;
+    margin-bottom: 10px;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.selection-subtitle {
+    color: white;
+    font-size: 1.2em;
+    margin-bottom: 40px;
+    opacity: 0.9;
+}
+
+.board-selection {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 30px;
+    width: 100%;
+    max-width: 700px;
+    margin-bottom: 40px;
+}
+
+.board-card {
+    background: white;
+    padding: 40px 30px;
+    border-radius: 20px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-align: center;
+}
+
+.board-card:hover {
+    transform: translateY(-10px);
+    box-shadow: 0 15px 50px rgba(0, 0, 0, 0.3);
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+}
+
+.board-card:hover .board-icon {
+    transform: scale(1.2);
+}
+
+.board-card:hover h2,
+.board-card:hover p {
+    color: white;
+}
+
+.board-icon {
+    font-size: 4em;
+    margin-bottom: 20px;
+    transition: transform 0.3s ease;
+}
+
+.board-card h2 {
+    font-size: 1.8em;
+    margin-bottom: 10px;
+    color: #333;
+    transition: color 0.3s ease;
+}
+
+.board-card p {
+    font-size: 1em;
+    color: #666;
+    transition: color 0.3s ease;
+}
+
 /* 컨테이너 */
 .container {
     max-width: 1200px;
@@ -544,6 +630,31 @@ body {
     
     .login-logo {
         width: 150px;
+    }
+    
+    .selection-logo {
+        width: 120px;
+    }
+    
+    .selection-container h1 {
+        font-size: 1.8em;
+    }
+    
+    .board-selection {
+        grid-template-columns: 1fr;
+        gap: 20px;
+    }
+    
+    .board-card {
+        padding: 30px 20px;
+    }
+    
+    .board-icon {
+        font-size: 3em;
+    }
+    
+    .board-card h2 {
+        font-size: 1.5em;
     }
 
     .post-details {
