@@ -46,9 +46,12 @@ http://localhost:8000
 
 ## 💾 데이터 저장
 
-- **로컬 스토리지 사용**: 모든 게시글은 브라우저의 로컬 스토리지에 저장됩니다
+- **IndexedDB 사용**: 브라우저의 IndexedDB를 사용하여 대용량 데이터 저장
+- **저장 용량**: 약 50MB ~ 수백MB (로컬 스토리지의 10배 이상!)
 - **영구 저장**: 브라우저를 닫아도 데이터가 유지됩니다
-- **이미지 저장**: 이미지는 Base64 형식으로 변환되어 저장됩니다
+- **이미지 저장**: 이미지는 자동 압축(800px, 70% 품질) 후 Base64로 저장
+- **성능**: 비동기 처리로 빠른 속도
+- **저장 공간 모니터링**: 실시간으로 사용량 확인 가능
 
 ## 🎨 주요 기능 상세
 
@@ -81,8 +84,9 @@ http://localhost:8000
 
 ## 🛠️ 기술 스택
 
-- **Frontend**: HTML5, CSS3, JavaScript (Vanilla)
-- **Storage**: Browser LocalStorage
+- **Frontend**: HTML5, CSS3, JavaScript (ES6+)
+- **Storage**: IndexedDB (대용량 저장)
+- **Image Processing**: Canvas API (자동 압축)
 - **Design**: Responsive, Modern UI/UX
 
 ## 📂 파일 구조
@@ -91,7 +95,8 @@ http://localhost:8000
 /home/user/webapp/
 ├── index.html      # 메인 HTML 파일
 ├── style.css       # 스타일시트
-├── script.js       # JavaScript 로직
+├── script.js       # JavaScript 로직 (UI, CRUD)
+├── db.js           # IndexedDB 관리 모듈
 └── README.md       # 프로젝트 문서
 ```
 
@@ -111,16 +116,35 @@ http://localhost:8000
 
 ## ⚠️ 주의사항
 
-- 로컬 스토리지 사용으로 브라우저 캐시 삭제 시 데이터가 손실될 수 있습니다
-- 대용량 이미지 다수 업로드 시 브라우저 성능에 영향을 줄 수 있습니다
-- 프로덕션 환경에서는 백엔드 서버와 데이터베이스 연동을 권장합니다
+- IndexedDB 사용으로 대용량 저장 가능 (50MB 이상)
+- 브라우저 캐시 삭제 시 데이터가 손실될 수 있습니다
+- 이미지는 자동으로 압축되어 저장됩니다 (최대 5개)
+- 최신 브라우저(Chrome, Firefox, Safari, Edge)에서 작동합니다
 
 ## 🔄 향후 개선 가능 사항
 
 - 백엔드 서버 연동 (Node.js, Python 등)
 - 데이터베이스 연동 (MongoDB, PostgreSQL 등)
-- 이미지 최적화 및 클라우드 스토리지 연동
+- 클라우드 스토리지 연동 (AWS S3, Cloudinary 등)
 - 게시글 수정 기능 추가
 - 페이지네이션 구현
 - 댓글 기능 추가
 - 파일 다운로드 기능
+- PWA(Progressive Web App) 지원
+
+## 🚀 성능 개선
+
+### IndexedDB vs LocalStorage
+
+| 항목 | LocalStorage | IndexedDB |
+|------|-------------|-----------|
+| 저장 용량 | 약 5-10MB | 약 50MB-수백MB |
+| 성능 | 동기식 (느림) | 비동기식 (빠름) |
+| 데이터 타입 | 문자열만 | 모든 타입 |
+| 대용량 처리 | 불가능 | 가능 |
+
+### 이미지 압축
+
+- **원본 이미지**: 2~5MB
+- **압축 후**: 50~200KB (약 90-95% 감소)
+- **품질**: 시각적으로 손실 거의 없음
