@@ -6,13 +6,13 @@ let dbInitialized = false;
 // IndexedDB 초기화 및 데이터 로드
 async function initDatabase() {
     try {
-        await postDB.init();
+        await window.postDB.init();
         dbInitialized = true;
         console.log('IndexedDB 초기화 완료');
         return true;
     } catch (error) {
         console.error('IndexedDB 초기화 실패:', error);
-        alert('⚠️ 데이터베이스 초기화 실패. 로컬 스토리지로 전환합니다.');
+        alert('⚠️ 데이터베이스 초기화 실패. 페이지를 새로고침 해주세요.');
         return false;
     }
 }
@@ -24,7 +24,7 @@ async function loadData() {
     }
     
     try {
-        posts = await postDB.getAllPosts();
+        posts = await window.postDB.getAllPosts();
         console.log('데이터 로드 완료:', posts.length, '개');
     } catch (error) {
         console.error('데이터 로드 실패:', error);
@@ -46,7 +46,7 @@ async function savePost(content, estimate, survey, images) {
     };
     
     try {
-        await postDB.addPost(post);
+        await window.postDB.addPost(post);
         await loadData(); // 목록 새로고침
         console.log('게시글 저장 완료');
         
@@ -249,7 +249,7 @@ function savePost(content, estimate, survey, images) {
 async function deletePost(postId) {
     if (confirm('🗑️ 정말 이 게시글을 삭제하시겠습니까?')) {
         try {
-            await postDB.deletePost(postId);
+            await window.postDB.deletePost(postId);
             await loadData();
             renderPosts('admin');
             await updateStorageInfo();
@@ -266,7 +266,7 @@ async function clearAllData() {
     if (confirm('⚠️ 경고!\n\n모든 게시글이 삭제됩니다.\n정말 초기화하시겠습니까?')) {
         if (confirm('🔴 최종 확인\n\n이 작업은 되돌릴 수 없습니다.\n계속하시겠습니까?')) {
             try {
-                await postDB.clearAll();
+                await window.postDB.clearAll();
                 posts = [];
                 renderPosts('admin');
                 await updateStorageInfo();
@@ -285,7 +285,7 @@ async function updateStorageInfo() {
     if (!storageInfoDiv) return;
     
     try {
-        const estimate = await postDB.getStorageEstimate();
+        const estimate = await window.postDB.getStorageEstimate();
         
         if (estimate) {
             const usedMB = parseFloat(estimate.usageInMB);
@@ -492,8 +492,11 @@ window.onclick = function(event) {
 }
 
 // 엔터키로 로그인
-document.addEventListener('DOMContentLoaded', async function() {
-    await initDatabase();
+document.addEventListener('DOMContentLoaded', function() {
+    // 비동기 초기화를 IIFE로 감싸기
+    (async function() {
+        await initDatabase();
+    })();
     
     const loginInput = document.getElementById('loginPassword');
     if (loginInput) {

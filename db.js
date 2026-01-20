@@ -136,3 +136,6 @@ class PostDatabase {
 
 // 전역 데이터베이스 인스턴스
 const postDB = new PostDatabase();
+
+// 전역 접근을 위해 window 객체에 등록
+window.postDB = postDB;
