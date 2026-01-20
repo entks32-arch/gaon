@@ -54,9 +54,9 @@ body {
     text-align: center;
 }
 
-/* PC에서는 줄바꿈 숨김 */
+/* PC에서도 줄바꿈 표시 */
 .mobile-br {
-    display: none;
+    display: block;
 }
 
 .login-box {
