@@ -12,7 +12,25 @@ function loadData() {
 
 // 로컬 스토리지에 데이터 저장
 function saveData() {
-    localStorage.setItem('posts', JSON.stringify(posts));
+    try {
+        const dataStr = JSON.stringify(posts);
+        const dataSize = (dataStr.length / 1024).toFixed(2);
+        console.log('저장할 데이터 크기:', dataSize, 'KB');
+        
+        localStorage.setItem('posts', dataStr);
+        console.log('로컬 스토리지 저장 성공');
+    } catch (e) {
+        if (e.name === 'QuotaExceededError') {
+            console.error('로컬 스토리지 용량 초과');
+            alert('⚠️ 저장 공간이 부족합니다.\n\n해결방법:\n1. 일부 게시글을 삭제하거나\n2. 이미지를 적게 업로드하거나\n3. 브라우저 데이터를 초기화하세요.');
+            return false;
+        } else {
+            console.error('저장 실패:', e);
+            alert('❌ 데이터 저장 중 오류가 발생했습니다.');
+            return false;
+        }
+    }
+    return true;
 }
 
 // 로그인
@@ -23,6 +41,7 @@ function login() {
         currentUser = 'admin';
         showScreen('adminScreen');
         renderPosts('admin');
+        updateStorageInfo();
     } else if (password === '1478') {
         currentUser = 'user';
         showScreen('userScreen');
@@ -66,6 +85,48 @@ function clearForm() {
     document.getElementById('adminImage').value = '';
 }
 
+// 이미지 압축 함수
+function compressImage(file, maxWidth = 800, quality = 0.7) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        
+        reader.onload = function(e) {
+            const img = new Image();
+            
+            img.onload = function() {
+                const canvas = document.createElement('canvas');
+                let width = img.width;
+                let height = img.height;
+                
+                // 최대 너비 제한
+                if (width > maxWidth) {
+                    height = (height * maxWidth) / width;
+                    width = maxWidth;
+                }
+                
+                canvas.width = width;
+                canvas.height = height;
+                
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, width, height);
+                
+                // 압축된 이미지를 Base64로 변환
+                const compressedDataUrl = canvas.toDataURL('image/jpeg', quality);
+                console.log('원본 크기:', (e.target.result.length / 1024).toFixed(2), 'KB');
+                console.log('압축 후 크기:', (compressedDataUrl.length / 1024).toFixed(2), 'KB');
+                
+                resolve(compressedDataUrl);
+            };
+            
+            img.onerror = reject;
+            img.src = e.target.result;
+        };
+        
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+    });
+}
+
 // 게시글 추가
 function addPost() {
     console.log('게시글 등록 시작');
@@ -87,36 +148,34 @@ function addPost() {
         return;
     }
     
-    // 이미지 파일 읽기
+    // 이미지 파일 읽기 및 압축
     const images = [];
     const files = imageInput.files;
     
     if (files.length > 0) {
         console.log('이미지 파일 처리 시작:', files.length, '개');
-        let filesRead = 0;
+        
+        // 이미지 개수 제한 (최대 5개)
+        if (files.length > 5) {
+            alert('⚠️ 이미지는 최대 5개까지 업로드할 수 있습니다.');
+            return;
+        }
+        
+        const promises = [];
         
         for (let i = 0; i < files.length; i++) {
-            const file = files[i];
-            const reader = new FileReader();
-            
-            reader.onload = function(e) {
-                console.log('이미지 로드 완료:', i + 1, '/', files.length);
-                images.push(e.target.result);
-                filesRead++;
-                
-                if (filesRead === files.length) {
-                    console.log('모든 이미지 로드 완료, 저장 시작');
-                    savePost(content, estimate, survey, images);
-                }
-            };
-            
-            reader.onerror = function(e) {
-                console.error('이미지 로드 실패:', e);
-                alert('❌ 이미지 로드 중 오류가 발생했습니다.');
-            };
-            
-            reader.readAsDataURL(file);
+            promises.push(compressImage(files[i]));
         }
+        
+        Promise.all(promises)
+            .then(compressedImages => {
+                console.log('모든 이미지 압축 완료, 저장 시작');
+                savePost(content, estimate, survey, compressedImages);
+            })
+            .catch(error => {
+                console.error('이미지 압축 실패:', error);
+                alert('❌ 이미지 처리 중 오류가 발생했습니다.');
+            });
     } else {
         console.log('이미지 없이 저장');
         savePost(content, estimate, survey, images);
@@ -139,12 +198,21 @@ function savePost(content, estimate, survey, images) {
     posts.unshift(post);
     console.log('현재 게시글 수:', posts.length);
     
-    saveData();
+    const saved = saveData();
+    
+    if (!saved) {
+        // 저장 실패 시 추가한 게시글 제거
+        posts.shift();
+        console.log('저장 실패로 게시글 제거');
+        return;
+    }
+    
     console.log('로컬 스토리지 저장 완료');
     
     alert('✅ 게시글이 등록되었습니다.');
     hideAddPostForm();
     renderPosts('admin');
+    updateStorageInfo();
     console.log('게시글 등록 완료');
 }
 
@@ -154,7 +222,51 @@ function deletePost(postId) {
         posts = posts.filter(post => post.id !== postId);
         saveData();
         renderPosts('admin');
+        updateStorageInfo();
         alert('✅ 게시글이 삭제되었습니다.');
+    }
+}
+
+// 전체 데이터 초기화
+function clearAllData() {
+    if (confirm('⚠️ 경고!\n\n모든 게시글이 삭제됩니다.\n정말 초기화하시겠습니까?')) {
+        if (confirm('🔴 최종 확인\n\n이 작업은 되돌릴 수 없습니다.\n계속하시겠습니까?')) {
+            posts = [];
+            localStorage.removeItem('posts');
+            renderPosts('admin');
+            updateStorageInfo();
+            alert('✅ 모든 데이터가 초기화되었습니다.');
+        }
+    }
+}
+
+// 저장 공간 정보 업데이트
+function updateStorageInfo() {
+    const storageInfoDiv = document.getElementById('storageInfo');
+    if (!storageInfoDiv) return;
+    
+    try {
+        const dataStr = JSON.stringify(posts);
+        const usedKB = (dataStr.length / 1024).toFixed(2);
+        const maxKB = 5120; // 로컬 스토리지 대략 5MB
+        const usedPercent = ((usedKB / maxKB) * 100).toFixed(1);
+        
+        const isWarning = usedPercent > 70;
+        
+        storageInfoDiv.innerHTML = `
+            <div>
+                <strong>💾 저장 공간:</strong> ${usedKB} KB / ${maxKB} KB 사용중
+            </div>
+            <div class="storage-bar">
+                <div class="storage-bar-fill ${isWarning ? 'warning' : ''}" 
+                     style="width: ${Math.min(usedPercent, 100)}%"></div>
+            </div>
+            <div>
+                <strong>${usedPercent}%</strong> ${isWarning ? '⚠️ 공간 부족' : ''}
+            </div>
+        `;
+    } catch (e) {
+        console.error('저장 공간 정보 업데이트 실패:', e);
     }
 }
 

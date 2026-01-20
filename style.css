@@ -130,6 +130,23 @@ body {
     background: #c82333;
 }
 
+.btn-warning {
+    padding: 12px 24px;
+    background: #ffc107;
+    color: #333;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: bold;
+    transition: background 0.3s;
+    margin-left: 10px;
+}
+
+.btn-warning:hover {
+    background: #e0a800;
+}
+
 /* 컨테이너 */
 .container {
     max-width: 1200px;
@@ -225,6 +242,44 @@ body {
 
 .form-group textarea {
     resize: vertical;
+}
+
+.form-hint {
+    display: block;
+    margin-top: 5px;
+    font-size: 12px;
+    color: #666;
+}
+
+.storage-info {
+    background: #e3f2fd;
+    padding: 15px;
+    border-radius: 10px;
+    margin-bottom: 20px;
+    font-size: 14px;
+    color: #1976d2;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.storage-bar {
+    flex: 1;
+    margin: 0 15px;
+    height: 10px;
+    background: #bbdefb;
+    border-radius: 5px;
+    overflow: hidden;
+}
+
+.storage-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #4caf50, #2196f3);
+    transition: width 0.3s, background 0.3s;
+}
+
+.storage-bar-fill.warning {
+    background: linear-gradient(90deg, #ff9800, #f44336);
 }
 
 .form-actions {
