@@ -51,6 +51,7 @@ body {
     font-size: 2.5em;
     margin-bottom: 30px;
     text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+    text-align: center;
 }
 
 /* PC에서는 줄바꿈 숨김 */
