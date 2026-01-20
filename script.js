@@ -1,50 +1,79 @@
 // 전역 변수
 let currentUser = null;
 let posts = [];
+let dbInitialized = false;
 
-// 로컬 스토리지에서 데이터 로드
-function loadData() {
-    const savedPosts = localStorage.getItem('posts');
-    if (savedPosts) {
-        posts = JSON.parse(savedPosts);
+// IndexedDB 초기화 및 데이터 로드
+async function initDatabase() {
+    try {
+        await postDB.init();
+        dbInitialized = true;
+        console.log('IndexedDB 초기화 완료');
+        return true;
+    } catch (error) {
+        console.error('IndexedDB 초기화 실패:', error);
+        alert('⚠️ 데이터베이스 초기화 실패. 로컬 스토리지로 전환합니다.');
+        return false;
     }
 }
 
-// 로컬 스토리지에 데이터 저장
-function saveData() {
-    try {
-        const dataStr = JSON.stringify(posts);
-        const dataSize = (dataStr.length / 1024).toFixed(2);
-        console.log('저장할 데이터 크기:', dataSize, 'KB');
-        
-        localStorage.setItem('posts', dataStr);
-        console.log('로컬 스토리지 저장 성공');
-    } catch (e) {
-        if (e.name === 'QuotaExceededError') {
-            console.error('로컬 스토리지 용량 초과');
-            alert('⚠️ 저장 공간이 부족합니다.\n\n해결방법:\n1. 일부 게시글을 삭제하거나\n2. 이미지를 적게 업로드하거나\n3. 브라우저 데이터를 초기화하세요.');
-            return false;
-        } else {
-            console.error('저장 실패:', e);
-            alert('❌ 데이터 저장 중 오류가 발생했습니다.');
-            return false;
-        }
+// 데이터 로드
+async function loadData() {
+    if (!dbInitialized) {
+        await initDatabase();
     }
-    return true;
+    
+    try {
+        posts = await postDB.getAllPosts();
+        console.log('데이터 로드 완료:', posts.length, '개');
+    } catch (error) {
+        console.error('데이터 로드 실패:', error);
+        posts = [];
+    }
+}
+
+// 데이터 저장 (IndexedDB는 개별 저장)
+async function savePost(content, estimate, survey, images) {
+    console.log('게시글 저장 시작:', { content, estimate, survey, imagesCount: images.length });
+    
+    const post = {
+        id: Date.now(),
+        content: content,
+        estimate: estimate,
+        survey: survey,
+        images: images,
+        date: new Date().toLocaleString('ko-KR')
+    };
+    
+    try {
+        await postDB.addPost(post);
+        await loadData(); // 목록 새로고침
+        console.log('게시글 저장 완료');
+        
+        alert('✅ 게시글이 등록되었습니다.');
+        hideAddPostForm();
+        renderPosts('admin');
+        await updateStorageInfo();
+    } catch (error) {
+        console.error('게시글 저장 실패:', error);
+        alert('❌ 게시글 저장 중 오류가 발생했습니다.');
+    }
 }
 
 // 로그인
-function login() {
+async function login() {
     const password = document.getElementById('loginPassword').value;
     
     if (password === '8810') {
         currentUser = 'admin';
         showScreen('adminScreen');
+        await loadData();
         renderPosts('admin');
-        updateStorageInfo();
+        await updateStorageInfo();
     } else if (password === '1478') {
         currentUser = 'user';
         showScreen('userScreen');
+        await loadData();
         renderPosts('user');
     } else {
         alert('❌ 비밀번호가 올바르지 않습니다.');
@@ -168,9 +197,9 @@ function addPost() {
         }
         
         Promise.all(promises)
-            .then(compressedImages => {
+            .then(async compressedImages => {
                 console.log('모든 이미지 압축 완료, 저장 시작');
-                savePost(content, estimate, survey, compressedImages);
+                await savePost(content, estimate, survey, compressedImages);
             })
             .catch(error => {
                 console.error('이미지 압축 실패:', error);
@@ -178,7 +207,7 @@ function addPost() {
             });
     } else {
         console.log('이미지 없이 저장');
-        savePost(content, estimate, survey, images);
+        await savePost(content, estimate, survey, images);
     }
 }
 
@@ -217,54 +246,74 @@ function savePost(content, estimate, survey, images) {
 }
 
 // 게시글 삭제
-function deletePost(postId) {
+async function deletePost(postId) {
     if (confirm('🗑️ 정말 이 게시글을 삭제하시겠습니까?')) {
-        posts = posts.filter(post => post.id !== postId);
-        saveData();
-        renderPosts('admin');
-        updateStorageInfo();
-        alert('✅ 게시글이 삭제되었습니다.');
+        try {
+            await postDB.deletePost(postId);
+            await loadData();
+            renderPosts('admin');
+            await updateStorageInfo();
+            alert('✅ 게시글이 삭제되었습니다.');
+        } catch (error) {
+            console.error('게시글 삭제 실패:', error);
+            alert('❌ 게시글 삭제 중 오류가 발생했습니다.');
+        }
     }
 }
 
 // 전체 데이터 초기화
-function clearAllData() {
+async function clearAllData() {
     if (confirm('⚠️ 경고!\n\n모든 게시글이 삭제됩니다.\n정말 초기화하시겠습니까?')) {
         if (confirm('🔴 최종 확인\n\n이 작업은 되돌릴 수 없습니다.\n계속하시겠습니까?')) {
-            posts = [];
-            localStorage.removeItem('posts');
-            renderPosts('admin');
-            updateStorageInfo();
-            alert('✅ 모든 데이터가 초기화되었습니다.');
+            try {
+                await postDB.clearAll();
+                posts = [];
+                renderPosts('admin');
+                await updateStorageInfo();
+                alert('✅ 모든 데이터가 초기화되었습니다.');
+            } catch (error) {
+                console.error('데이터 초기화 실패:', error);
+                alert('❌ 데이터 초기화 중 오류가 발생했습니다.');
+            }
         }
     }
 }
 
 // 저장 공간 정보 업데이트
-function updateStorageInfo() {
+async function updateStorageInfo() {
     const storageInfoDiv = document.getElementById('storageInfo');
     if (!storageInfoDiv) return;
     
     try {
-        const dataStr = JSON.stringify(posts);
-        const usedKB = (dataStr.length / 1024).toFixed(2);
-        const maxKB = 5120; // 로컬 스토리지 대략 5MB
-        const usedPercent = ((usedKB / maxKB) * 100).toFixed(1);
+        const estimate = await postDB.getStorageEstimate();
         
-        const isWarning = usedPercent > 70;
-        
-        storageInfoDiv.innerHTML = `
-            <div>
-                <strong>💾 저장 공간:</strong> ${usedKB} KB / ${maxKB} KB 사용중
-            </div>
-            <div class="storage-bar">
-                <div class="storage-bar-fill ${isWarning ? 'warning' : ''}" 
-                     style="width: ${Math.min(usedPercent, 100)}%"></div>
-            </div>
-            <div>
-                <strong>${usedPercent}%</strong> ${isWarning ? '⚠️ 공간 부족' : ''}
-            </div>
-        `;
+        if (estimate) {
+            const usedMB = parseFloat(estimate.usageInMB);
+            const quotaMB = parseFloat(estimate.quotaInMB);
+            const percent = parseFloat(estimate.percentUsed);
+            
+            const isWarning = percent > 70;
+            
+            storageInfoDiv.innerHTML = `
+                <div>
+                    <strong>💾 저장 공간:</strong> ${usedMB} MB / ${quotaMB} MB 사용중 (게시글: ${posts.length}개)
+                </div>
+                <div class="storage-bar">
+                    <div class="storage-bar-fill ${isWarning ? 'warning' : ''}" 
+                         style="width: ${Math.min(percent, 100)}%"></div>
+                </div>
+                <div>
+                    <strong>${percent}%</strong> ${isWarning ? '⚠️ 공간 부족' : '✅ 여유 공간'}
+                </div>
+            `;
+        } else {
+            storageInfoDiv.innerHTML = `
+                <div>
+                    <strong>💾 저장 공간:</strong> IndexedDB 사용중 (게시글: ${posts.length}개)
+                </div>
+                <div>✅ 대용량 저장 가능</div>
+            `;
+        }
     } catch (e) {
         console.error('저장 공간 정보 업데이트 실패:', e);
     }
@@ -443,8 +492,8 @@ window.onclick = function(event) {
 }
 
 // 엔터키로 로그인
-document.addEventListener('DOMContentLoaded', function() {
-    loadData();
+document.addEventListener('DOMContentLoaded', async function() {
+    await initDatabase();
     
     const loginInput = document.getElementById('loginPassword');
     if (loginInput) {
