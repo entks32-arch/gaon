@@ -1,16 +1,13 @@
 // Firebase Firestore 데이터베이스 관리 모듈
-import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js';
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js';
 import { 
     getFirestore, 
     collection, 
     addDoc, 
     getDocs, 
     deleteDoc, 
-    doc,
-    query,
-    orderBy,
-    Timestamp
-} from 'https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js';
+    doc
+} from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js';
 
 // Firebase 설정
 const firebaseConfig = {
@@ -45,8 +42,7 @@ class PostDatabase {
     // 모든 게시글 가져오기
     async getAllPosts() {
         try {
-            const q = query(collection(this.db, this.postsCollection), orderBy('id', 'desc'));
-            const querySnapshot = await getDocs(q);
+            const querySnapshot = await getDocs(collection(this.db, this.postsCollection));
             
             const posts = [];
             querySnapshot.forEach((doc) => {
@@ -55,6 +51,9 @@ class PostDatabase {
                     ...doc.data()
                 });
             });
+            
+            // 클라이언트에서 정렬 (최신순)
+            posts.sort((a, b) => b.id - a.id);
             
             console.log('게시글 로드 완료:', posts.length, '개');
             return posts;
@@ -67,8 +66,7 @@ class PostDatabase {
     // 모든 자재 가져오기
     async getAllMaterials() {
         try {
-            const q = query(collection(this.db, this.materialsCollection), orderBy('id', 'desc'));
-            const querySnapshot = await getDocs(q);
+            const querySnapshot = await getDocs(collection(this.db, this.materialsCollection));
             
             const materials = [];
             querySnapshot.forEach((doc) => {
@@ -77,6 +75,9 @@ class PostDatabase {
                     ...doc.data()
                 });
             });
+            
+            // 클라이언트에서 정렬 (최신순)
+            materials.sort((a, b) => b.id - a.id);
             
             console.log('자재 로드 완료:', materials.length, '개');
             return materials;

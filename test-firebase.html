@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Firebase 테스트</title>
+</head>
+<body>
+    <h1>Firebase Firestore 연결 테스트</h1>
+    <button id="testAdd">게시글 추가 테스트</button>
+    <button id="testGet">게시글 조회 테스트</button>
+    <div id="result" style="margin-top: 20px; padding: 10px; border: 1px solid #ccc;"></div>
+
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-app.js';
+        import { 
+            getFirestore, 
+            collection, 
+            addDoc, 
+            getDocs
+        } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js';
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyBFfMMAk11XI95zPoBxsfl4olIwypNJAxk",
+            authDomain: "gaondi.firebaseapp.com",
+            projectId: "gaondi",
+            storageBucket: "gaondi.firebasestorage.app",
+            messagingSenderId: "346202871348",
+            appId: "1:346202871348:web:49d8bae30af5200e631c61",
+            measurementId: "G-HE89RPBY84"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const resultDiv = document.getElementById('result');
+
+        console.log('Firebase 초기화 완료');
+        resultDiv.innerHTML += '<p>✅ Firebase 초기화 완료</p>';
+
+        document.getElementById('testAdd').addEventListener('click', async () => {
+            try {
+                const testPost = {
+                    id: Date.now(),
+                    content: '테스트 게시글',
+                    estimate: '100만원',
+                    survey: '했음',
+                    images: [],
+                    date: new Date().toLocaleString('ko-KR')
+                };
+
+                resultDiv.innerHTML += '<p>⏳ 게시글 추가 중...</p>';
+                const docRef = await addDoc(collection(db, 'posts'), testPost);
+                console.log('게시글 추가 성공:', docRef.id);
+                resultDiv.innerHTML += `<p>✅ 게시글 추가 성공! ID: ${docRef.id}</p>`;
+            } catch (error) {
+                console.error('게시글 추가 실패:', error);
+                resultDiv.innerHTML += `<p>❌ 게시글 추가 실패: ${error.message}</p>`;
+            }
+        });
+
+        document.getElementById('testGet').addEventListener('click', async () => {
+            try {
+                resultDiv.innerHTML += '<p>⏳ 게시글 조회 중...</p>';
+                const querySnapshot = await getDocs(collection(db, 'posts'));
+                
+                const posts = [];
+                querySnapshot.forEach((doc) => {
+                    posts.push({ id: doc.id, ...doc.data() });
+                });
+                
+                console.log('게시글 조회 성공:', posts.length, '개');
+                resultDiv.innerHTML += `<p>✅ 게시글 조회 성공! 총 ${posts.length}개</p>`;
+                resultDiv.innerHTML += `<pre>${JSON.stringify(posts, null, 2)}</pre>`;
+            } catch (error) {
+                console.error('게시글 조회 실패:', error);
+                resultDiv.innerHTML += `<p>❌ 게시글 조회 실패: ${error.message}</p>`;
+            }
+        });
+    </script>
+</body>
+</html>

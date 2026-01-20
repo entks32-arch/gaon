@@ -35,7 +35,7 @@ async function loadData() {
 // 전역 함수 등록
 window.loadData = loadData;
 
-// 데이터 저장 (IndexedDB는 개별 저장)
+// 데이터 저장 (Firebase Firestore 저장)
 async function savePost(content, estimate, survey, images) {
     console.log('게시글 저장 시작:', { content, estimate, survey, imagesCount: images.length });
     
@@ -49,7 +49,10 @@ async function savePost(content, estimate, survey, images) {
     };
     
     try {
-        await window.postDB.addPost(post);
+        console.log('Firestore에 저장 중...', post);
+        const docId = await window.postDB.addPost(post);
+        console.log('Firestore 저장 성공, 문서 ID:', docId);
+        
         await loadData(); // 목록 새로고침
         console.log('게시글 저장 완료');
         
@@ -58,8 +61,10 @@ async function savePost(content, estimate, survey, images) {
         renderPosts('admin');
         await updateStorageInfo();
     } catch (error) {
-        console.error('게시글 저장 실패:', error);
-        alert('❌ 게시글 저장 중 오류가 발생했습니다.');
+        console.error('게시글 저장 실패 - 상세 에러:', error);
+        console.error('에러 메시지:', error.message);
+        console.error('에러 스택:', error.stack);
+        alert('❌ 게시글 저장 중 오류가 발생했습니다: ' + error.message);
     }
 }
 
@@ -363,7 +368,10 @@ async function saveUserPost(content, estimate, survey, images) {
     };
     
     try {
-        await window.postDB.addPost(post);
+        console.log('Firestore에 저장 중...', post);
+        const docId = await window.postDB.addPost(post);
+        console.log('Firestore 저장 성공, 문서 ID:', docId);
+        
         await loadData(); // 목록 새로고침
         console.log('사용자 게시글 저장 완료');
         
@@ -371,8 +379,10 @@ async function saveUserPost(content, estimate, survey, images) {
         hideUserAddPostForm();
         renderPosts('user');
     } catch (error) {
-        console.error('사용자 게시글 저장 실패:', error);
-        alert('❌ 게시글 저장 중 오류가 발생했습니다.');
+        console.error('사용자 게시글 저장 실패 - 상세 에러:', error);
+        console.error('에러 메시지:', error.message);
+        console.error('에러 스택:', error.stack);
+        alert('❌ 게시글 저장 중 오류가 발생했습니다: ' + error.message);
     }
 }
 
