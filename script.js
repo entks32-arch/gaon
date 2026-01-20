@@ -222,40 +222,6 @@ function addPost() {
 // 전역 함수 등록
 window.addPost = addPost;
 
-// 게시글 저장
-function savePost(content, estimate, survey, images) {
-    console.log('게시글 저장 시작:', { content, estimate, survey, imagesCount: images.length });
-    
-    const post = {
-        id: Date.now(),
-        content: content,
-        estimate: estimate,
-        survey: survey,
-        images: images,
-        date: new Date().toLocaleString('ko-KR')
-    };
-    
-    posts.unshift(post);
-    console.log('현재 게시글 수:', posts.length);
-    
-    const saved = saveData();
-    
-    if (!saved) {
-        // 저장 실패 시 추가한 게시글 제거
-        posts.shift();
-        console.log('저장 실패로 게시글 제거');
-        return;
-    }
-    
-    console.log('로컬 스토리지 저장 완료');
-    
-    alert('✅ 게시글이 등록되었습니다.');
-    hideAddPostForm();
-    renderPosts('admin');
-    updateStorageInfo();
-    console.log('게시글 등록 완료');
-}
-
 // 게시글 삭제
 async function deletePost(postId) {
     if (confirm('🗑️ 정말 이 게시글을 삭제하시겠습니까?')) {
