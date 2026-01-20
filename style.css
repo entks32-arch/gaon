@@ -53,6 +53,11 @@ body {
     text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
 }
 
+/* PC에서는 줄바꿈 숨김 */
+.mobile-br {
+    display: none;
+}
+
 .login-box {
     background: white;
     padding: 40px;
@@ -634,10 +639,15 @@ body {
     
     /* 로그인 화면 제목 크기 조정 */
     .login-container h1 {
-        font-size: 1.5em;
+        font-size: 1.8em;
         text-align: center;
-        word-break: keep-all;
-        padding: 0 10px;
+        line-height: 1.3;
+        padding: 0 15px;
+    }
+    
+    /* 모바일에서 줄바꿈 표시 */
+    .mobile-br {
+        display: block;
     }
     
     .selection-logo {
@@ -681,7 +691,7 @@ body {
 /* 작은 모바일 화면 (360px 이하) */
 @media (max-width: 360px) {
     .login-container h1 {
-        font-size: 1.3em;
+        font-size: 1.5em;
     }
     
     .login-box {
