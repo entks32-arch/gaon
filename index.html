@@ -14,7 +14,7 @@
             <div class="login-box">
                 <h2>로그인</h2>
                 <input type="password" id="loginPassword" placeholder="비밀번호 입력" />
-                <button onclick="login()">로그인</button>
+                <button id="loginButton">로그인</button>
                 <div class="login-hint">
                     <p>👤 사용자: 1478</p>
                     <p>👔 관리자: 8810</p>
@@ -29,14 +29,14 @@
             <h1>📋 시공 게시판 - 관리자</h1>
             <div class="header-actions">
                 <span class="user-info">👔 관리자</span>
-                <button onclick="logout()" class="btn-logout">로그아웃</button>
+                <button class="btn-logout" id="adminLogoutButton">로그아웃</button>
             </div>
         </div>
 
         <div class="container">
             <div class="action-buttons">
-                <button onclick="showAddPostForm()" class="btn-primary">➕ 게시글 등록</button>
-                <button onclick="clearAllData()" class="btn-warning">🗑️ 전체 데이터 초기화</button>
+                <button id="showAddPostButton" class="btn-primary">➕ 게시글 등록</button>
+                <button id="clearAllDataButton" class="btn-warning">🗑️ 전체 데이터 초기화</button>
             </div>
             
             <!-- 저장 공간 정보 -->
@@ -70,14 +70,14 @@
                     <small class="form-hint">💡 이미지는 자동으로 압축되어 저장됩니다</small>
                 </div>
                 <div class="form-actions">
-                    <button onclick="addPost()" class="btn-primary">등록</button>
-                    <button onclick="hideAddPostForm()" class="btn-secondary">취소</button>
+                    <button id="addPostButton" class="btn-primary">등록</button>
+                    <button id="hideAddPostButton" class="btn-secondary">취소</button>
                 </div>
             </div>
 
             <!-- 검색 -->
             <div class="search-box">
-                <input type="text" id="adminSearchInput" placeholder="🔍 키워드 검색..." onkeyup="searchPosts('admin')" />
+                <input type="text" id="adminSearchInput" placeholder="🔍 키워드 검색..." />
             </div>
 
             <!-- 게시글 목록 -->
@@ -91,14 +91,14 @@
             <h1>📋 시공 게시판</h1>
             <div class="header-actions">
                 <span class="user-info">👤 사용자</span>
-                <button onclick="logout()" class="btn-logout">로그아웃</button>
+                <button class="btn-logout" id="userLogoutButton">로그아웃</button>
             </div>
         </div>
 
         <div class="container">
             <!-- 검색 -->
             <div class="search-box">
-                <input type="text" id="userSearchInput" placeholder="🔍 키워드 검색..." onkeyup="searchPosts('user')" />
+                <input type="text" id="userSearchInput" placeholder="🔍 키워드 검색..." />
             </div>
 
             <!-- 게시글 목록 -->
@@ -109,7 +109,7 @@
     <!-- 게시글 상세보기 모달 -->
     <div id="postModal" class="modal">
         <div class="modal-content">
-            <span class="close" onclick="closeModal()">&times;</span>
+            <span class="close" id="modalCloseButton">&times;</span>
             <div id="modalPostContent"></div>
         </div>
     </div>

@@ -510,14 +510,6 @@ function closeModal() {
 window.showImageModal = showImageModal;
 window.closeModal = closeModal;
 
-// 모달 외부 클릭시 닫기
-window.onclick = function(event) {
-    const modal = document.getElementById('postModal');
-    if (event.target === modal) {
-        modal.style.display = 'none';
-    }
-}
-
 // 엔터키로 로그인
 document.addEventListener('DOMContentLoaded', function() {
     // 비동기 초기화를 IIFE로 감싸기
@@ -525,11 +517,84 @@ document.addEventListener('DOMContentLoaded', function() {
         await initDatabase();
     })();
     
+    // 로그인 관련 이벤트
+    const loginButton = document.getElementById('loginButton');
     const loginInput = document.getElementById('loginPassword');
+    
+    if (loginButton) {
+        loginButton.addEventListener('click', login);
+    }
+    
     if (loginInput) {
         loginInput.addEventListener('keypress', function(e) {
             if (e.key === 'Enter') {
                 login();
+            }
+        });
+    }
+    
+    // 로그아웃 버튼
+    const adminLogoutButton = document.getElementById('adminLogoutButton');
+    const userLogoutButton = document.getElementById('userLogoutButton');
+    
+    if (adminLogoutButton) {
+        adminLogoutButton.addEventListener('click', logout);
+    }
+    
+    if (userLogoutButton) {
+        userLogoutButton.addEventListener('click', logout);
+    }
+    
+    // 관리자 버튼들
+    const showAddPostButton = document.getElementById('showAddPostButton');
+    const clearAllDataButton = document.getElementById('clearAllDataButton');
+    const addPostButton = document.getElementById('addPostButton');
+    const hideAddPostButton = document.getElementById('hideAddPostButton');
+    
+    if (showAddPostButton) {
+        showAddPostButton.addEventListener('click', showAddPostForm);
+    }
+    
+    if (clearAllDataButton) {
+        clearAllDataButton.addEventListener('click', clearAllData);
+    }
+    
+    if (addPostButton) {
+        addPostButton.addEventListener('click', addPost);
+    }
+    
+    if (hideAddPostButton) {
+        hideAddPostButton.addEventListener('click', hideAddPostForm);
+    }
+    
+    // 검색 입력
+    const adminSearchInput = document.getElementById('adminSearchInput');
+    const userSearchInput = document.getElementById('userSearchInput');
+    
+    if (adminSearchInput) {
+        adminSearchInput.addEventListener('keyup', function() {
+            searchPosts('admin');
+        });
+    }
+    
+    if (userSearchInput) {
+        userSearchInput.addEventListener('keyup', function() {
+            searchPosts('user');
+        });
+    }
+    
+    // 모달 닫기 버튼
+    const modalCloseButton = document.getElementById('modalCloseButton');
+    if (modalCloseButton) {
+        modalCloseButton.addEventListener('click', closeModal);
+    }
+    
+    // 모달 외부 클릭시 닫기
+    const modal = document.getElementById('postModal');
+    if (modal) {
+        modal.addEventListener('click', function(event) {
+            if (event.target === modal) {
+                closeModal();
             }
         });
     }
