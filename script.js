@@ -352,7 +352,7 @@ async function clearAllData() {
     if (confirm('⚠️ 경고!\n\n모든 게시글이 삭제됩니다.\n정말 초기화하시겠습니까?')) {
         if (confirm('🔴 최종 확인\n\n이 작업은 되돌릴 수 없습니다.\n계속하시겠습니까?')) {
             try {
-                await window.postDB.clearAll();
+                await window.postDB.clearAllPosts();
                 posts = [];
                 renderPosts('admin');
                 await updateStorageInfo();
@@ -669,6 +669,83 @@ document.addEventListener('DOMContentLoaded', function() {
     if (userSearchInput) {
         userSearchInput.addEventListener('keyup', function() {
             searchPosts('user');
+        });
+    }
+    
+    // 탭 전환
+    const adminConstructionTab = document.getElementById('adminConstructionTab');
+    const adminMaterialTab = document.getElementById('adminMaterialTab');
+    const userConstructionTab = document.getElementById('userConstructionTab');
+    const userMaterialTab = document.getElementById('userMaterialTab');
+    
+    if (adminConstructionTab) {
+        adminConstructionTab.addEventListener('click', () => switchTab('admin', 'construction'));
+    }
+    
+    if (adminMaterialTab) {
+        adminMaterialTab.addEventListener('click', () => switchTab('admin', 'material'));
+    }
+    
+    if (userConstructionTab) {
+        userConstructionTab.addEventListener('click', () => switchTab('user', 'construction'));
+    }
+    
+    if (userMaterialTab) {
+        userMaterialTab.addEventListener('click', () => switchTab('user', 'material'));
+    }
+    
+    // 자재 관리 버튼 (관리자)
+    const showAddMaterialButton = document.getElementById('showAddMaterialButton');
+    const clearAllMaterialButton = document.getElementById('clearAllMaterialButton');
+    const addMaterialButton = document.getElementById('addMaterialButton');
+    const hideMaterialButton = document.getElementById('hideMaterialButton');
+    
+    if (showAddMaterialButton) {
+        showAddMaterialButton.addEventListener('click', showAddMaterialForm);
+    }
+    
+    if (clearAllMaterialButton) {
+        clearAllMaterialButton.addEventListener('click', clearAllMaterials);
+    }
+    
+    if (addMaterialButton) {
+        addMaterialButton.addEventListener('click', addMaterial);
+    }
+    
+    if (hideMaterialButton) {
+        hideMaterialButton.addEventListener('click', hideAddMaterialForm);
+    }
+    
+    // 자재 관리 버튼 (사용자)
+    const userShowAddMaterialButton = document.getElementById('userShowAddMaterialButton');
+    const userAddMaterialButton = document.getElementById('userAddMaterialButton');
+    const userHideMaterialButton = document.getElementById('userHideMaterialButton');
+    
+    if (userShowAddMaterialButton) {
+        userShowAddMaterialButton.addEventListener('click', showUserAddMaterialForm);
+    }
+    
+    if (userAddMaterialButton) {
+        userAddMaterialButton.addEventListener('click', addUserMaterial);
+    }
+    
+    if (userHideMaterialButton) {
+        userHideMaterialButton.addEventListener('click', hideUserAddMaterialForm);
+    }
+    
+    // 자재 검색
+    const adminMaterialSearchInput = document.getElementById('adminMaterialSearchInput');
+    const userMaterialSearchInput = document.getElementById('userMaterialSearchInput');
+    
+    if (adminMaterialSearchInput) {
+        adminMaterialSearchInput.addEventListener('keyup', function() {
+            searchMaterials('admin');
+        });
+    }
+    
+    if (userMaterialSearchInput) {
+        userMaterialSearchInput.addEventListener('keyup', function() {
+            searchMaterials('user');
         });
     }
     
