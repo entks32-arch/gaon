@@ -632,6 +632,14 @@ body {
         width: 150px;
     }
     
+    /* 로그인 화면 제목 크기 조정 */
+    .login-container h1 {
+        font-size: 1.5em;
+        text-align: center;
+        word-break: keep-all;
+        padding: 0 10px;
+    }
+    
     .selection-logo {
         width: 120px;
     }
@@ -667,5 +675,20 @@ body {
 
     .form-actions button {
         width: 100%;
+    }
+}
+
+/* 작은 모바일 화면 (360px 이하) */
+@media (max-width: 360px) {
+    .login-container h1 {
+        font-size: 1.3em;
+    }
+    
+    .login-box {
+        padding: 30px 20px;
+    }
+    
+    .selection-container h1 {
+        font-size: 1.5em;
     }
 }
