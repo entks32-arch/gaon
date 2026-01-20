@@ -128,7 +128,7 @@ function addMaterial() {
         const promises = [];
         
         for (let i = 0; i < files.length; i++) {
-            promises.push(compressImage(files[i]));
+            promises.push(window.compressImage(files[i]));
         }
         
         Promise.all(promises)
@@ -178,7 +178,7 @@ function addUserMaterial() {
         const promises = [];
         
         for (let i = 0; i < files.length; i++) {
-            promises.push(compressImage(files[i]));
+            promises.push(window.compressImage(files[i]));
         }
         
         Promise.all(promises)
@@ -300,9 +300,9 @@ function renderMaterials(userType) {
     }
     
     listElement.innerHTML = materials.map(material => {
-        const escapedName = escapeHtml(material.name);
-        const escapedDesc = escapeHtml(material.description || '');
-        const escapedPrice = escapeHtml(material.price);
+        const escapedName = window.escapeHtml(material.name);
+        const escapedDesc = window.escapeHtml(material.description || '');
+        const escapedPrice = window.escapeHtml(material.price);
         
         return `
         <div class="post-item">
@@ -382,9 +382,9 @@ function searchMaterials(userType) {
     }
     
     listElement.innerHTML = filteredMaterials.map(material => {
-        const escapedName = escapeHtml(material.name);
-        const escapedDesc = escapeHtml(material.description || '');
-        const escapedPrice = escapeHtml(material.price);
+        const escapedName = window.escapeHtml(material.name);
+        const escapedDesc = window.escapeHtml(material.description || '');
+        const escapedPrice = window.escapeHtml(material.price);
         
         return `
         <div class="post-item">

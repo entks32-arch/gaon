@@ -230,6 +230,9 @@ function compressImage(file, maxWidth = 800, quality = 0.7) {
     });
 }
 
+// 전역 함수 등록
+window.compressImage = compressImage;
+
 // 게시글 추가
 function addPost() {
     console.log('게시글 등록 시작');
@@ -518,6 +521,9 @@ function escapeHtml(text) {
     div.textContent = text;
     return div.innerHTML;
 }
+
+// 전역 함수 등록
+window.escapeHtml = escapeHtml;
 
 // 검색 기능
 function searchPosts(userType) {
