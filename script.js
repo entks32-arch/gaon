@@ -82,6 +82,9 @@ async function login() {
     document.getElementById('loginPassword').value = '';
 }
 
+// 전역 접근을 위해 window 객체에 등록
+window.login = login;
+
 // 로그아웃
 function logout() {
     currentUser = null;
@@ -113,6 +116,11 @@ function clearForm() {
     document.getElementById('adminSurvey').value = '했음';
     document.getElementById('adminImage').value = '';
 }
+
+// 전역 함수 등록
+window.logout = logout;
+window.showAddPostForm = showAddPostForm;
+window.hideAddPostForm = hideAddPostForm;
 
 // 이미지 압축 함수
 function compressImage(file, maxWidth = 800, quality = 0.7) {
@@ -207,9 +215,12 @@ function addPost() {
             });
     } else {
         console.log('이미지 없이 저장');
-        await savePost(content, estimate, survey, images);
+        savePost(content, estimate, survey, images);
     }
 }
+
+// 전역 함수 등록
+window.addPost = addPost;
 
 // 게시글 저장
 function savePost(content, estimate, survey, images) {
@@ -261,6 +272,9 @@ async function deletePost(postId) {
     }
 }
 
+// 전역 함수 등록
+window.deletePost = deletePost;
+
 // 전체 데이터 초기화
 async function clearAllData() {
     if (confirm('⚠️ 경고!\n\n모든 게시글이 삭제됩니다.\n정말 초기화하시겠습니까?')) {
@@ -278,6 +292,9 @@ async function clearAllData() {
         }
     }
 }
+
+// 전역 함수 등록
+window.clearAllData = clearAllData;
 
 // 저장 공간 정보 업데이트
 async function updateStorageInfo() {
@@ -458,6 +475,9 @@ function searchPosts(userType) {
     }).join('');
 }
 
+// 전역 함수 등록
+window.searchPosts = searchPosts;
+
 // 이미지 모달 표시 (ID로 찾기)
 function showImageModalById(postId, imageIndex) {
     const post = posts.find(p => p.id === postId);
@@ -465,6 +485,9 @@ function showImageModalById(postId, imageIndex) {
         showImageModal(post.images[imageIndex]);
     }
 }
+
+// 전역 함수 등록
+window.showImageModalById = showImageModalById;
 
 // 이미지 모달 표시
 function showImageModal(imageSrc) {
@@ -482,6 +505,10 @@ function showImageModal(imageSrc) {
 function closeModal() {
     document.getElementById('postModal').style.display = 'none';
 }
+
+// 전역 함수 등록
+window.showImageModal = showImageModal;
+window.closeModal = closeModal;
 
 // 모달 외부 클릭시 닫기
 window.onclick = function(event) {
