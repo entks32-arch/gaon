@@ -68,10 +68,14 @@ function clearForm() {
 
 // 게시글 추가
 function addPost() {
+    console.log('게시글 등록 시작');
+    
     const content = document.getElementById('adminContent').value.trim();
     const estimate = document.getElementById('adminEstimate').value.trim();
     const survey = document.getElementById('adminSurvey').value;
     const imageInput = document.getElementById('adminImage');
+    
+    console.log('입력값:', { content, estimate, survey, filesCount: imageInput.files.length });
     
     if (!content) {
         alert('❌ 시공 내용을 입력하세요.');
@@ -88,6 +92,7 @@ function addPost() {
     const files = imageInput.files;
     
     if (files.length > 0) {
+        console.log('이미지 파일 처리 시작:', files.length, '개');
         let filesRead = 0;
         
         for (let i = 0; i < files.length; i++) {
@@ -95,23 +100,33 @@ function addPost() {
             const reader = new FileReader();
             
             reader.onload = function(e) {
+                console.log('이미지 로드 완료:', i + 1, '/', files.length);
                 images.push(e.target.result);
                 filesRead++;
                 
                 if (filesRead === files.length) {
+                    console.log('모든 이미지 로드 완료, 저장 시작');
                     savePost(content, estimate, survey, images);
                 }
+            };
+            
+            reader.onerror = function(e) {
+                console.error('이미지 로드 실패:', e);
+                alert('❌ 이미지 로드 중 오류가 발생했습니다.');
             };
             
             reader.readAsDataURL(file);
         }
     } else {
+        console.log('이미지 없이 저장');
         savePost(content, estimate, survey, images);
     }
 }
 
 // 게시글 저장
 function savePost(content, estimate, survey, images) {
+    console.log('게시글 저장 시작:', { content, estimate, survey, imagesCount: images.length });
+    
     const post = {
         id: Date.now(),
         content: content,
@@ -122,11 +137,15 @@ function savePost(content, estimate, survey, images) {
     };
     
     posts.unshift(post);
+    console.log('현재 게시글 수:', posts.length);
+    
     saveData();
+    console.log('로컬 스토리지 저장 완료');
     
     alert('✅ 게시글이 등록되었습니다.');
     hideAddPostForm();
     renderPosts('admin');
+    console.log('게시글 등록 완료');
 }
 
 // 게시글 삭제
@@ -154,7 +173,11 @@ function renderPosts(userType) {
         return;
     }
     
-    listElement.innerHTML = posts.map(post => `
+    listElement.innerHTML = posts.map(post => {
+        const escapedContent = escapeHtml(post.content);
+        const escapedEstimate = escapeHtml(post.estimate);
+        
+        return `
         <div class="post-item">
             <div class="post-header">
                 <div class="post-date">📅 ${post.date}</div>
@@ -165,13 +188,13 @@ function renderPosts(userType) {
             
             <div class="post-content">
                 <h3>📝 시공 내용</h3>
-                <p>${post.content}</p>
+                <p>${escapedContent}</p>
             </div>
             
             <div class="post-details">
                 <div class="detail-item">
                     <div class="detail-label">💰 견적</div>
-                    <div class="detail-value">${post.estimate}</div>
+                    <div class="detail-value">${escapedEstimate}</div>
                 </div>
                 <div class="detail-item">
                     <div class="detail-label">📏 실측 여부</div>
@@ -185,12 +208,20 @@ function renderPosts(userType) {
                 <div class="post-images">
                     ${post.images.map((img, index) => `
                         <img src="${img}" alt="시공 이미지 ${index + 1}" class="post-image" 
-                             onclick="showImageModal('${img}')">
+                             onclick="showImageModalById(${post.id}, ${index})">
                     `).join('')}
                 </div>
             ` : ''}
         </div>
-    `).join('');
+    `;
+    }).join('');
+}
+
+// HTML 이스케이프 함수
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
 }
 
 // 검색 기능
@@ -222,7 +253,11 @@ function searchPosts(userType) {
         return;
     }
     
-    listElement.innerHTML = filteredPosts.map(post => `
+    listElement.innerHTML = filteredPosts.map(post => {
+        const escapedContent = escapeHtml(post.content);
+        const escapedEstimate = escapeHtml(post.estimate);
+        
+        return `
         <div class="post-item">
             <div class="post-header">
                 <div class="post-date">📅 ${post.date}</div>
@@ -233,13 +268,13 @@ function searchPosts(userType) {
             
             <div class="post-content">
                 <h3>📝 시공 내용</h3>
-                <p>${post.content}</p>
+                <p>${escapedContent}</p>
             </div>
             
             <div class="post-details">
                 <div class="detail-item">
                     <div class="detail-label">💰 견적</div>
-                    <div class="detail-value">${post.estimate}</div>
+                    <div class="detail-value">${escapedEstimate}</div>
                 </div>
                 <div class="detail-item">
                     <div class="detail-label">📏 실측 여부</div>
@@ -253,12 +288,21 @@ function searchPosts(userType) {
                 <div class="post-images">
                     ${post.images.map((img, index) => `
                         <img src="${img}" alt="시공 이미지 ${index + 1}" class="post-image" 
-                             onclick="showImageModal('${img}')">
+                             onclick="showImageModalById(${post.id}, ${index})">
                     `).join('')}
                 </div>
             ` : ''}
         </div>
-    `).join('');
+    `;
+    }).join('');
+}
+
+// 이미지 모달 표시 (ID로 찾기)
+function showImageModalById(postId, imageIndex) {
+    const post = posts.find(p => p.id === postId);
+    if (post && post.images[imageIndex]) {
+        showImageModal(post.images[imageIndex]);
+    }
 }
 
 // 이미지 모달 표시
