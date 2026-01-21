@@ -128,8 +128,8 @@ function addMaterial() {
     if (files.length > 0) {
         console.log('이미지 파일 처리 시작:', files.length, '개');
         
-        if (files.length > 5) {
-            alert('⚠️ 이미지는 최대 5개까지 업로드할 수 있습니다.');
+        if (files.length > 8) {
+            alert('⚠️ 이미지는 최대 8개까지 업로드할 수 있습니다.');
             return;
         }
         
@@ -178,8 +178,8 @@ function addUserMaterial() {
     if (files.length > 0) {
         console.log('이미지 파일 처리 시작:', files.length, '개');
         
-        if (files.length > 5) {
-            alert('⚠️ 이미지는 최대 5개까지 업로드할 수 있습니다.');
+        if (files.length > 8) {
+            alert('⚠️ 이미지는 최대 8개까지 업로드할 수 있습니다.');
             return;
         }
         
