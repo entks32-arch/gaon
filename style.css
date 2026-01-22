@@ -721,11 +721,76 @@ body {
     padding: 0 15px 15px 15px;
 }
 
-/* 반응형 */
+/* 반응형 - 태블릿 */
+@media (max-width: 1024px) {
+    .post-list {
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    }
+}
+
+/* 반응형 - 모바일 */
 @media (max-width: 768px) {
     .post-list {
-        grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+        grid-template-columns: repeat(2, 1fr);
+        gap: 15px;
     }
+    
+    .post-item {
+        font-size: 12px;
+    }
+    
+    .post-thumbnail {
+        height: 150px;
+    }
+    
+    .post-header {
+        padding: 8px 10px;
+    }
+    
+    .post-date {
+        font-size: 10px;
+    }
+    
+    .post-content {
+        padding: 10px;
+    }
+    
+    .post-content p {
+        font-size: 11px;
+        line-height: 1.4;
+        -webkit-line-clamp: 2;
+    }
+    
+    .post-details {
+        padding: 0 10px;
+        gap: 5px;
+        margin-bottom: 8px;
+    }
+    
+    .detail-item {
+        font-size: 10px;
+    }
+    
+    .detail-label {
+        font-size: 10px;
+    }
+    
+    .detail-value {
+        font-size: 10px;
+    }
+    
+    .btn-edit, .btn-danger {
+        padding: 4px 8px;
+        font-size: 10px;
+    }
+    
+    .image-count {
+        font-size: 10px;
+        padding: 3px 6px;
+        bottom: 5px;
+        right: 5px;
+    }
+    
     .header {
         flex-direction: column;
         gap: 15px;
@@ -787,20 +852,51 @@ body {
         font-size: 1.5em;
     }
 
-    .post-details {
-        flex-direction: column;
-    }
-    
-    .post-thumbnail {
-        height: 180px;
-    }
-
     .form-actions {
         flex-direction: column;
     }
 
     .form-actions button {
         width: 100%;
+    }
+    
+    .modal-content {
+        margin: 20px auto;
+        padding: 20px;
+        width: 95%;
+    }
+    
+    .container {
+        padding: 0 10px;
+    }
+}
+
+/* 반응형 - 작은 모바일 */
+@media (max-width: 480px) {
+    .post-list {
+        grid-template-columns: 1fr;
+        gap: 15px;
+    }
+    
+    .post-thumbnail {
+        height: 200px;
+    }
+    
+    .post-content p {
+        -webkit-line-clamp: 3;
+        font-size: 12px;
+    }
+    
+    .detail-item {
+        font-size: 11px;
+    }
+    
+    .detail-label {
+        font-size: 11px;
+    }
+    
+    .detail-value {
+        font-size: 11px;
     }
 }
 
