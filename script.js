@@ -332,7 +332,7 @@ const uploadProgress = {
 window.uploadProgress = uploadProgress;
 
 // 비디오 파일 압축 함수
-function compressVideo(file, maxWidth = 640, fps = 24, quality = 0.6) {
+function compressVideo(file, maxWidth = 480, fps = 12, quality = 0.4, maxDuration = 30) {
     return new Promise((resolve, reject) => {
         const fileId = 'file-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
         
@@ -351,7 +351,14 @@ function compressVideo(file, maxWidth = 640, fps = 24, quality = 0.6) {
             video.src = e.target.result;
             
             video.onloadedmetadata = function() {
-                const duration = video.duration;
+                let duration = video.duration;
+                
+                // 영상 길이 제한
+                if (duration > maxDuration) {
+                    console.warn(`영상이 너무 깁니다 (${duration.toFixed(1)}초). ${maxDuration}초로 제한합니다.`);
+                    duration = maxDuration;
+                }
+                
                 let width = video.videoWidth;
                 let height = video.videoHeight;
                 
@@ -367,8 +374,10 @@ function compressVideo(file, maxWidth = 640, fps = 24, quality = 0.6) {
                 console.log('비디오 정보:', {
                     원본크기: `${video.videoWidth}x${video.videoHeight}`,
                     압축크기: `${width}x${height}`,
-                    길이: duration.toFixed(2) + '초',
-                    FPS: fps
+                    원본길이: video.duration.toFixed(2) + '초',
+                    압축길이: duration.toFixed(2) + '초',
+                    FPS: fps,
+                    품질: quality
                 });
                 
                 const frames = [];
@@ -393,7 +402,9 @@ function compressVideo(file, maxWidth = 640, fps = 24, quality = 0.6) {
                             duration: duration
                         };
                         
-                        const compressedDataUrl = 'data:application/json;base64,' + btoa(JSON.stringify(compressedVideo));
+                        const jsonStr = JSON.stringify(compressedVideo);
+                        const compressedDataUrl = 'data:application/json;base64,' + btoa(jsonStr);
+                        
                         const originalSize = (e.target.result.length / 1024 / 1024).toFixed(2);
                         const compressedSize = (compressedDataUrl.length / 1024 / 1024).toFixed(2);
                         
@@ -401,6 +412,13 @@ function compressVideo(file, maxWidth = 640, fps = 24, quality = 0.6) {
                         console.log('원본 크기:', originalSize, 'MB');
                         console.log('압축 후 크기:', compressedSize, 'MB');
                         console.log('압축률:', ((1 - compressedDataUrl.length / e.target.result.length) * 100).toFixed(1) + '%');
+                        
+                        // Firestore 크기 제한 확인 (1MB = 1048576 bytes)
+                        if (compressedDataUrl.length > 900000) {
+                            uploadProgress.setError(fileId, '영상이 너무 큽니다. 더 짧은 영상을 사용하세요.');
+                            reject(new Error('압축 후에도 파일이 너무 큽니다. 영상을 더 짧게 자르거나 더 작은 해상도로 촬영해주세요.'));
+                            return;
+                        }
                         
                         uploadProgress.setComplete(fileId);
                         
