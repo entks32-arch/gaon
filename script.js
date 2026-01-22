@@ -790,34 +790,39 @@ async function updateStorageInfo() {
         const estimate = await window.postDB.getStorageEstimate();
         
         if (estimate) {
-            const usedMB = parseFloat(estimate.usageInMB);
-            const quotaMB = parseFloat(estimate.quotaInMB);
-            const percent = parseFloat(estimate.percentUsed);
+            const usedMB = Number(estimate.usageInMB) || 0;
+            const quotaMB = Number(estimate.quotaInMB) || 1024;
+            const percent = Number(estimate.percentUsed) || 0;
             
             const isWarning = percent > 70;
             
             storageInfoDiv.innerHTML = `
                 <div>
-                    <strong>💾 저장 공간:</strong> ${usedMB} MB / ${quotaMB} MB 사용중 (게시글: ${posts.length}개)
+                    <strong>💾 저장 공간:</strong> ${usedMB.toFixed(2)} MB / ${quotaMB} MB 사용중 (게시글: ${posts.length}개)
                 </div>
                 <div class="storage-bar">
                     <div class="storage-bar-fill ${isWarning ? 'warning' : ''}" 
                          style="width: ${Math.min(percent, 100)}%"></div>
                 </div>
                 <div>
-                    <strong>${percent}%</strong> ${isWarning ? '⚠️ 공간 부족' : '✅ 여유 공간'}
+                    <strong>${percent.toFixed(2)}%</strong> ${isWarning ? '⚠️ 공간 부족' : '✅ 여유 공간'}
                 </div>
             `;
         } else {
             storageInfoDiv.innerHTML = `
                 <div>
-                    <strong>💾 저장 공간:</strong> IndexedDB 사용중 (게시글: ${posts.length}개)
+                    <strong>💾 저장 공간:</strong> Firestore 사용중 (게시글: ${posts.length}개)
                 </div>
-                <div>✅ 대용량 저장 가능</div>
+                <div>✅ 클라우드 저장소</div>
             `;
         }
     } catch (e) {
         console.error('저장 공간 정보 업데이트 실패:', e);
+        storageInfoDiv.innerHTML = `
+            <div>
+                <strong>💾 저장 공간:</strong> 계산 중... (게시글: ${posts.length}개)
+            </div>
+        `;
     }
 }
 

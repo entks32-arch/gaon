@@ -207,13 +207,61 @@ class PostDatabase {
 
     // 저장 공간 정보 (Firestore는 클라우드이므로 제한 없음)
     async getStorageEstimate() {
-        return {
-            usage: 0,
-            quota: Infinity,
-            usageInMB: '0.00',
-            quotaInMB: '무제한',
-            percentUsed: '0.00'
-        };
+        // Firestore는 자체적으로 저장 공간을 관리하므로
+        // 실제 사용량을 측정하는 대신 게시글 개수 기반으로 예상 용량 표시
+        try {
+            const posts = await this.getAllPosts();
+            const materials = await this.getAllMaterials();
+            
+            // 대략적인 예상 크기 계산 (MB)
+            let estimatedSize = 0;
+            
+            // 게시글 크기 계산
+            posts.forEach(post => {
+                // 기본 정보 크기
+                estimatedSize += 0.001; // 1KB
+                
+                // 이미지/영상 크기 추정
+                if (post.images && post.images.length > 0) {
+                    post.images.forEach(img => {
+                        // base64 문자열 길이로 대략적인 크기 계산
+                        estimatedSize += (img.length / 1024 / 1024); // MB로 변환
+                    });
+                }
+            });
+            
+            // 자재 크기 계산
+            materials.forEach(material => {
+                estimatedSize += 0.001;
+                if (material.images && material.images.length > 0) {
+                    material.images.forEach(img => {
+                        estimatedSize += (img.length / 1024 / 1024);
+                    });
+                }
+            });
+            
+            // Firestore 무료 계획 할당량: 1GB
+            const quotaMB = 1024;
+            const usedMB = estimatedSize;
+            const percentUsed = (usedMB / quotaMB) * 100;
+            
+            return {
+                usage: usedMB * 1024 * 1024, // bytes
+                quota: quotaMB * 1024 * 1024, // bytes
+                usageInMB: usedMB.toFixed(2),
+                quotaInMB: quotaMB.toFixed(0),
+                percentUsed: percentUsed.toFixed(2)
+            };
+        } catch (error) {
+            console.error('저장 공간 계산 오류:', error);
+            return {
+                usage: 0,
+                quota: 1024 * 1024 * 1024, // 1GB in bytes
+                usageInMB: 0,
+                quotaInMB: 1024,
+                percentUsed: 0
+            };
+        }
     }
 }
 
