@@ -192,7 +192,9 @@ function hideUserAddPostForm() {
 
 // 폼 초기화
 function clearForm() {
-    document.getElementById('adminContent').value = '';
+    document.getElementById('adminContent').value = `작업내용 : 
+
+현장변수 : `;
     document.getElementById('adminEstimate').value = '';
     document.getElementById('adminSurvey').value = '했음';
     document.getElementById('adminPassword').value = '';
@@ -201,7 +203,9 @@ function clearForm() {
 
 // 사용자 폼 초기화
 function clearUserForm() {
-    document.getElementById('userContent').value = '';
+    document.getElementById('userContent').value = `작업내용 : 
+
+현장변수 : `;
     document.getElementById('userEstimate').value = '';
     document.getElementById('userSurvey').value = '했음';
     document.getElementById('userPassword').value = '';

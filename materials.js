@@ -85,14 +85,26 @@ function hideUserAddMaterialForm() {
 
 function clearMaterialForm() {
     document.getElementById('adminMaterialName').value = '';
-    document.getElementById('adminMaterialDesc').value = '';
+    document.getElementById('adminMaterialDesc').value = `제품명 : 
+
+규 격 : 
+
+특 징 : 
+
+비 고 : `;
     document.getElementById('adminMaterialPrice').value = '';
     document.getElementById('adminMaterialImage').value = '';
 }
 
 function clearUserMaterialForm() {
     document.getElementById('userMaterialName').value = '';
-    document.getElementById('userMaterialDesc').value = '';
+    document.getElementById('userMaterialDesc').value = `제품명 : 
+
+규 격 : 
+
+특 징 : 
+
+비 고 : `;
     document.getElementById('userMaterialPrice').value = '';
     document.getElementById('userMaterialImage').value = '';
 }
