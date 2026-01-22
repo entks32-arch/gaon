@@ -238,8 +238,30 @@ function compressImage(file, maxWidth = 800, quality = 0.7) {
     });
 }
 
+// 비디오 파일 처리 함수
+function processVideo(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        
+        reader.onload = function(e) {
+            console.log('비디오 파일 크기:', (e.target.result.length / 1024 / 1024).toFixed(2), 'MB');
+            resolve(e.target.result);
+        };
+        
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+    });
+}
+
+// 파일 타입 확인 함수
+function isVideoFile(file) {
+    return file.type.startsWith('video/');
+}
+
 // 전역 함수 등록
 window.compressImage = compressImage;
+window.processVideo = processVideo;
+window.isVideoFile = isVideoFile;
 
 // 게시글 추가
 function addPost() {
@@ -262,37 +284,41 @@ function addPost() {
         return;
     }
     
-    // 이미지 파일 읽기 및 압축
-    const images = [];
+    // 이미지/비디오 파일 읽기 및 처리
+    const media = [];
     const files = imageInput.files;
     
     if (files.length > 0) {
-        console.log('이미지 파일 처리 시작:', files.length, '개');
+        console.log('파일 처리 시작:', files.length, '개');
         
-        // 이미지 개수 제한 (최대 8개)
+        // 파일 개수 제한 (최대 8개)
         if (files.length > 8) {
-            alert('⚠️ 이미지는 최대 8개까지 업로드할 수 있습니다.');
+            alert('⚠️ 파일은 최대 8개까지 업로드할 수 있습니다.');
             return;
         }
         
         const promises = [];
         
         for (let i = 0; i < files.length; i++) {
-            promises.push(compressImage(files[i]));
+            if (isVideoFile(files[i])) {
+                promises.push(processVideo(files[i]));
+            } else {
+                promises.push(compressImage(files[i]));
+            }
         }
         
         Promise.all(promises)
-            .then(async compressedImages => {
-                console.log('모든 이미지 압축 완료, 저장 시작');
-                await savePost(content, estimate, survey, compressedImages);
+            .then(async processedMedia => {
+                console.log('모든 파일 처리 완료, 저장 시작');
+                await savePost(content, estimate, survey, processedMedia);
             })
             .catch(error => {
-                console.error('이미지 압축 실패:', error);
-                alert('❌ 이미지 처리 중 오류가 발생했습니다.');
+                console.error('파일 처리 실패:', error);
+                alert('❌ 파일 처리 중 오류가 발생했습니다.');
             });
     } else {
-        console.log('이미지 없이 저장');
-        savePost(content, estimate, survey, images);
+        console.log('파일 없이 저장');
+        savePost(content, estimate, survey, media);
     }
 }
 
@@ -320,37 +346,41 @@ function addUserPost() {
         return;
     }
     
-    // 이미지 파일 읽기 및 압축
-    const images = [];
+    // 이미지/비디오 파일 읽기 및 처리
+    const media = [];
     const files = imageInput.files;
     
     if (files.length > 0) {
-        console.log('이미지 파일 처리 시작:', files.length, '개');
+        console.log('파일 처리 시작:', files.length, '개');
         
-        // 이미지 개수 제한 (최대 8개)
+        // 파일 개수 제한 (최대 8개)
         if (files.length > 8) {
-            alert('⚠️ 이미지는 최대 8개까지 업로드할 수 있습니다.');
+            alert('⚠️ 파일은 최대 8개까지 업로드할 수 있습니다.');
             return;
         }
         
         const promises = [];
         
         for (let i = 0; i < files.length; i++) {
-            promises.push(compressImage(files[i]));
+            if (isVideoFile(files[i])) {
+                promises.push(processVideo(files[i]));
+            } else {
+                promises.push(compressImage(files[i]));
+            }
         }
         
         Promise.all(promises)
-            .then(async compressedImages => {
-                console.log('모든 이미지 압축 완료, 저장 시작');
-                await saveUserPost(content, estimate, survey, compressedImages);
+            .then(async processedMedia => {
+                console.log('모든 파일 처리 완료, 저장 시작');
+                await saveUserPost(content, estimate, survey, processedMedia);
             })
             .catch(error => {
-                console.error('이미지 압축 실패:', error);
-                alert('❌ 이미지 처리 중 오류가 발생했습니다.');
+                console.error('파일 처리 실패:', error);
+                alert('❌ 파일 처리 중 오류가 발생했습니다.');
             });
     } else {
-        console.log('이미지 없이 저장');
-        saveUserPost(content, estimate, survey, images);
+        console.log('파일 없이 저장');
+        saveUserPost(content, estimate, survey, media);
     }
 }
 
@@ -517,10 +547,22 @@ function renderPosts(userType) {
             
             ${post.images.length > 0 ? `
                 <div class="post-images">
-                    ${post.images.map((img, index) => `
-                        <img src="${img}" alt="시공 이미지 ${index + 1}" class="post-image" 
-                             onclick="showImageModalById(${post.id}, ${index})">
-                    `).join('')}
+                    ${post.images.map((media, index) => {
+                        const isVideo = media.startsWith('data:video/');
+                        if (isVideo) {
+                            return `
+                                <video src="${media}" class="post-image" controls 
+                                       onclick="event.stopPropagation(); showImageModalById(${post.id}, ${index})">
+                                    브라우저가 비디오를 지원하지 않습니다.
+                                </video>
+                            `;
+                        } else {
+                            return `
+                                <img src="${media}" alt="시공 이미지 ${index + 1}" class="post-image" 
+                                     onclick="showImageModalById(${post.id}, ${index})">
+                            `;
+                        }
+                    }).join('')}
                 </div>
             ` : ''}
         </div>
@@ -603,10 +645,22 @@ function searchPosts(userType) {
             
             ${post.images.length > 0 ? `
                 <div class="post-images">
-                    ${post.images.map((img, index) => `
-                        <img src="${img}" alt="시공 이미지 ${index + 1}" class="post-image" 
-                             onclick="showImageModalById(${post.id}, ${index})">
-                    `).join('')}
+                    ${post.images.map((media, index) => {
+                        const isVideo = media.startsWith('data:video/');
+                        if (isVideo) {
+                            return `
+                                <video src="${media}" class="post-image" controls 
+                                       onclick="event.stopPropagation(); showImageModalById(${post.id}, ${index})">
+                                    브라우저가 비디오를 지원하지 않습니다.
+                                </video>
+                            `;
+                        } else {
+                            return `
+                                <img src="${media}" alt="시공 이미지 ${index + 1}" class="post-image" 
+                                     onclick="showImageModalById(${post.id}, ${index})">
+                            `;
+                        }
+                    }).join('')}
                 </div>
             ` : ''}
         </div>
@@ -628,14 +682,24 @@ function showImageModalById(postId, imageIndex) {
 // 전역 함수 등록
 window.showImageModalById = showImageModalById;
 
-// 이미지 모달 표시
-function showImageModal(imageSrc) {
+// 이미지/비디오 모달 표시
+function showImageModal(mediaSrc) {
     const modal = document.getElementById('postModal');
     const modalContent = document.getElementById('modalPostContent');
     
-    modalContent.innerHTML = `
-        <img src="${imageSrc}" style="width: 100%; border-radius: 10px;">
-    `;
+    const isVideo = mediaSrc.startsWith('data:video/');
+    
+    if (isVideo) {
+        modalContent.innerHTML = `
+            <video src="${mediaSrc}" style="width: 100%; border-radius: 10px;" controls autoplay>
+                브라우저가 비디오를 지원하지 않습니다.
+            </video>
+        `;
+    } else {
+        modalContent.innerHTML = `
+            <img src="${mediaSrc}" style="width: 100%; border-radius: 10px;">
+        `;
+    }
     
     modal.style.display = 'block';
 }

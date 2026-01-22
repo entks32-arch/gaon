@@ -122,34 +122,38 @@ function addMaterial() {
         return;
     }
     
-    const images = [];
+    const media = [];
     const files = imageInput.files;
     
     if (files.length > 0) {
-        console.log('이미지 파일 처리 시작:', files.length, '개');
+        console.log('파일 처리 시작:', files.length, '개');
         
         if (files.length > 8) {
-            alert('⚠️ 이미지는 최대 8개까지 업로드할 수 있습니다.');
+            alert('⚠️ 파일은 최대 8개까지 업로드할 수 있습니다.');
             return;
         }
         
         const promises = [];
         
         for (let i = 0; i < files.length; i++) {
-            promises.push(window.compressImage(files[i]));
+            if (window.isVideoFile(files[i])) {
+                promises.push(window.processVideo(files[i]));
+            } else {
+                promises.push(window.compressImage(files[i]));
+            }
         }
         
         Promise.all(promises)
-            .then(async compressedImages => {
-                console.log('모든 이미지 압축 완료, 저장 시작');
-                await saveMaterial(name, desc, price, compressedImages);
+            .then(async processedMedia => {
+                console.log('모든 파일 처리 완료, 저장 시작');
+                await saveMaterial(name, desc, price, processedMedia);
             })
             .catch(error => {
-                console.error('이미지 압축 실패:', error);
-                alert('❌ 이미지 처리 중 오류가 발생했습니다.');
+                console.error('파일 처리 실패:', error);
+                alert('❌ 파일 처리 중 오류가 발생했습니다.');
             });
     } else {
-        saveMaterial(name, desc, price, images);
+        saveMaterial(name, desc, price, media);
     }
 }
 
@@ -172,34 +176,38 @@ function addUserMaterial() {
         return;
     }
     
-    const images = [];
+    const media = [];
     const files = imageInput.files;
     
     if (files.length > 0) {
-        console.log('이미지 파일 처리 시작:', files.length, '개');
+        console.log('파일 처리 시작:', files.length, '개');
         
         if (files.length > 8) {
-            alert('⚠️ 이미지는 최대 8개까지 업로드할 수 있습니다.');
+            alert('⚠️ 파일은 최대 8개까지 업로드할 수 있습니다.');
             return;
         }
         
         const promises = [];
         
         for (let i = 0; i < files.length; i++) {
-            promises.push(window.compressImage(files[i]));
+            if (window.isVideoFile(files[i])) {
+                promises.push(window.processVideo(files[i]));
+            } else {
+                promises.push(window.compressImage(files[i]));
+            }
         }
         
         Promise.all(promises)
-            .then(async compressedImages => {
-                console.log('모든 이미지 압축 완료, 저장 시작');
-                await saveUserMaterial(name, desc, price, compressedImages);
+            .then(async processedMedia => {
+                console.log('모든 파일 처리 완료, 저장 시작');
+                await saveUserMaterial(name, desc, price, processedMedia);
             })
             .catch(error => {
-                console.error('이미지 압축 실패:', error);
-                alert('❌ 이미지 처리 중 오류가 발생했습니다.');
+                console.error('파일 처리 실패:', error);
+                alert('❌ 파일 처리 중 오류가 발생했습니다.');
             });
     } else {
-        saveUserMaterial(name, desc, price, images);
+        saveUserMaterial(name, desc, price, media);
     }
 }
 
@@ -335,10 +343,22 @@ function renderMaterials(userType) {
             
             ${material.images.length > 0 ? `
                 <div class="post-images">
-                    ${material.images.map((img, index) => `
-                        <img src="${img}" alt="자재 이미지 ${index + 1}" class="post-image" 
-                             onclick="showMaterialImageById(${material.id}, ${index})">
-                    `).join('')}
+                    ${material.images.map((media, index) => {
+                        const isVideo = media.startsWith('data:video/');
+                        if (isVideo) {
+                            return `
+                                <video src="${media}" class="post-image" controls 
+                                       onclick="event.stopPropagation(); showMaterialImageById(${material.id}, ${index})">
+                                    브라우저가 비디오를 지원하지 않습니다.
+                                </video>
+                            `;
+                        } else {
+                            return `
+                                <img src="${media}" alt="자재 이미지 ${index + 1}" class="post-image" 
+                                     onclick="showMaterialImageById(${material.id}, ${index})">
+                            `;
+                        }
+                    }).join('')}
                 </div>
             ` : ''}
         </div>
@@ -417,10 +437,22 @@ function searchMaterials(userType) {
             
             ${material.images.length > 0 ? `
                 <div class="post-images">
-                    ${material.images.map((img, index) => `
-                        <img src="${img}" alt="자재 이미지 ${index + 1}" class="post-image" 
-                             onclick="showMaterialImageById(${material.id}, ${index})">
-                    `).join('')}
+                    ${material.images.map((media, index) => {
+                        const isVideo = media.startsWith('data:video/');
+                        if (isVideo) {
+                            return `
+                                <video src="${media}" class="post-image" controls 
+                                       onclick="event.stopPropagation(); showMaterialImageById(${material.id}, ${index})">
+                                    브라우저가 비디오를 지원하지 않습니다.
+                                </video>
+                            `;
+                        } else {
+                            return `
+                                <img src="${media}" alt="자재 이미지 ${index + 1}" class="post-image" 
+                                     onclick="showMaterialImageById(${material.id}, ${index})">
+                            `;
+                        }
+                    }).join('')}
                 </div>
             ` : ''}
         </div>
