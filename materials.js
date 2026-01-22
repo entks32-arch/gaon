@@ -351,7 +351,7 @@ function renderMaterials(userType) {
     
     listElement.innerHTML = materials.map(material => {
         const escapedName = window.escapeHtml(material.name);
-        const escapedDesc = window.escapeHtml(material.description || '');
+        const formattedDesc = window.formatText(material.description || '');
         const escapedPrice = window.escapeHtml(material.price);
         
         return `
@@ -365,7 +365,7 @@ function renderMaterials(userType) {
             
             <div class="post-content">
                 <h3>📦 ${escapedName}</h3>
-                ${escapedDesc ? `<p>${escapedDesc}</p>` : ''}
+                ${formattedDesc ? `<p class="formatted-text">${formattedDesc}</p>` : ''}
             </div>
             
             <div class="post-details">
@@ -448,7 +448,7 @@ function searchMaterials(userType) {
     
     listElement.innerHTML = filteredMaterials.map(material => {
         const escapedName = window.escapeHtml(material.name);
-        const escapedDesc = window.escapeHtml(material.description || '');
+        const formattedDesc = window.formatText(material.description || '');
         const escapedPrice = window.escapeHtml(material.price);
         
         return `
@@ -462,7 +462,7 @@ function searchMaterials(userType) {
             
             <div class="post-content">
                 <h3>📦 ${escapedName}</h3>
-                ${escapedDesc ? `<p>${escapedDesc}</p>` : ''}
+                ${formattedDesc ? `<p class="formatted-text">${formattedDesc}</p>` : ''}
             </div>
             
             <div class="post-details">

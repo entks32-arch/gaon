@@ -748,7 +748,7 @@ function renderPosts(userType) {
     }
     
     listElement.innerHTML = posts.map(post => {
-        const escapedContent = escapeHtml(post.content);
+        const formattedContent = formatText(post.content);
         const escapedEstimate = escapeHtml(post.estimate);
         
         return `
@@ -762,7 +762,7 @@ function renderPosts(userType) {
             
             <div class="post-content">
                 <h3>📝 시공 내용</h3>
-                <p>${escapedContent}</p>
+                <p class="formatted-text">${formattedContent}</p>
             </div>
             
             <div class="post-details">
@@ -816,8 +816,20 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
+// 텍스트를 보기 좋게 줄바꿈하는 함수
+function formatText(text) {
+    if (!text) return '';
+    
+    // HTML 이스케이프 먼저 적용
+    const escaped = escapeHtml(text);
+    
+    // 줄바꿈 문자를 <br>로 변환
+    return escaped.replace(/\n/g, '<br>');
+}
+
 // 전역 함수 등록
 window.escapeHtml = escapeHtml;
+window.formatText = formatText;
 
 // 검색 기능
 function searchPosts(userType) {
@@ -849,7 +861,7 @@ function searchPosts(userType) {
     }
     
     listElement.innerHTML = filteredPosts.map(post => {
-        const escapedContent = escapeHtml(post.content);
+        const formattedContent = formatText(post.content);
         const escapedEstimate = escapeHtml(post.estimate);
         
         return `
@@ -863,7 +875,7 @@ function searchPosts(userType) {
             
             <div class="post-content">
                 <h3>📝 시공 내용</h3>
-                <p>${escapedContent}</p>
+                <p class="formatted-text">${formattedContent}</p>
             </div>
             
             <div class="post-details">

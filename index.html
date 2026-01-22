@@ -100,6 +100,11 @@
                     </select>
                 </div>
                 <div class="form-group">
+                    <label>수정 비밀번호 (4자리)</label>
+                    <input type="password" id="adminPassword" placeholder="수정 시 필요한 비밀번호 (4자리)" maxlength="4" />
+                    <small class="form-hint">💡 나중에 게시글을 수정하려면 이 비밀번호가 필요합니다</small>
+                </div>
+                <div class="form-group">
                     <label>이미지/영상 첨부 (최대 8개)</label>
                     <input type="file" id="adminImage" accept="image/*,video/*" multiple />
                     <small class="form-hint">💡 이미지와 영상 모두 자동 압축됩니다 (영상은 최대 30초, 480p, 12fps, 낮은 품질로 압축)</small>
@@ -211,6 +216,11 @@
                     </select>
                 </div>
                 <div class="form-group">
+                    <label>수정 비밀번호 (4자리)</label>
+                    <input type="password" id="userPassword" placeholder="수정 시 필요한 비밀번호 (4자리)" maxlength="4" />
+                    <small class="form-hint">💡 나중에 게시글을 수정하려면 이 비밀번호가 필요합니다</small>
+                </div>
+                <div class="form-group">
                     <label>이미지/영상 첨부 (최대 8개)</label>
                     <input type="file" id="userImage" accept="image/*,video/*" multiple />
                     <small class="form-hint">💡 이미지와 영상 모두 자동 압축됩니다 (영상은 최대 30초, 480p, 12fps, 낮은 품질로 압축)</small>
@@ -288,6 +298,35 @@
         <div class="modal-content" style="max-width: 500px;">
             <h3 style="margin-bottom: 20px; text-align: center;">📹 파일 처리 중...</h3>
             <div id="uploadProgressContainer"></div>
+        </div>
+    </div>
+
+    <!-- 게시글 수정 모달 -->
+    <div id="editPostModal" class="modal" style="display: none;">
+        <div class="modal-content" style="max-width: 600px;">
+            <span class="close" id="editModalCloseButton">&times;</span>
+            <h3 style="margin-bottom: 20px;">게시글 수정</h3>
+            <div id="editPostForm">
+                <div class="form-group">
+                    <label>시공 내용</label>
+                    <textarea id="editContent" rows="4"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>견적</label>
+                    <input type="text" id="editEstimate" />
+                </div>
+                <div class="form-group">
+                    <label>실측 여부</label>
+                    <select id="editSurvey">
+                        <option value="했음">했음</option>
+                        <option value="안했음">안했음</option>
+                    </select>
+                </div>
+                <div class="form-actions">
+                    <button id="saveEditButton" class="btn-primary">저장</button>
+                    <button id="cancelEditButton" class="btn-secondary">취소</button>
+                </div>
+            </div>
         </div>
     </div>
 
