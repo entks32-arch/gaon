@@ -689,12 +689,46 @@ window.addUserPost = addUserPost;
 
 // 게시글 삭제
 async function deletePost(postId) {
+    const post = posts.find(p => p.id === postId);
+    
+    if (!post) {
+        alert('❌ 게시글을 찾을 수 없습니다.');
+        return;
+    }
+    
+    // 비밀번호가 있는 게시글이고 관리자가 아닌 경우 비밀번호 확인
+    if (post.password && currentUser !== 'admin') {
+        const inputPassword = prompt('삭제 비밀번호를 입력하세요 (4자리):');
+        if (!inputPassword) return;
+        
+        try {
+            const hashedInput = await hashPassword(inputPassword);
+            
+            if (hashedInput !== post.password) {
+                alert('❌ 비밀번호가 일치하지 않습니다.');
+                return;
+            }
+        } catch (error) {
+            console.error('비밀번호 확인 실패:', error);
+            alert('❌ 오류가 발생했습니다.');
+            return;
+        }
+    }
+    
+    // 비밀번호 확인 완료 또는 관리자인 경우 삭제 진행
     if (confirm('🗑️ 정말 이 게시글을 삭제하시겠습니까?')) {
         try {
             await window.postDB.deletePost(postId);
             await loadData();
-            renderPosts('admin');
-            await updateStorageInfo();
+            
+            // 현재 사용자 타입에 따라 렌더링
+            if (currentUser === 'admin') {
+                renderPosts('admin');
+                await updateStorageInfo();
+            } else {
+                renderPosts('user');
+            }
+            
             alert('✅ 게시글이 삭제되었습니다.');
         } catch (error) {
             console.error('게시글 삭제 실패:', error);
@@ -793,8 +827,9 @@ function renderPosts(userType) {
                 <div class="post-actions">
                     ${post.password ? `
                         <button class="btn-edit" onclick="showEditPost(${post.id})">✏️ 수정</button>
+                        <button class="btn-danger" onclick="deletePost(${post.id})">🗑️ 삭제</button>
                     ` : ''}
-                    ${userType === 'admin' ? `
+                    ${(userType === 'admin' && !post.password) ? `
                         <button class="btn-danger" onclick="deletePost(${post.id})">🗑️ 삭제</button>
                     ` : ''}
                 </div>
@@ -911,8 +946,9 @@ function searchPosts(userType) {
                 <div class="post-actions">
                     ${post.password ? `
                         <button class="btn-edit" onclick="showEditPost(${post.id})">✏️ 수정</button>
+                        <button class="btn-danger" onclick="deletePost(${post.id})">🗑️ 삭제</button>
                     ` : ''}
-                    ${userType === 'admin' ? `
+                    ${(userType === 'admin' && !post.password) ? `
                         <button class="btn-danger" onclick="deletePost(${post.id})">🗑️ 삭제</button>
                     ` : ''}
                 </div>
