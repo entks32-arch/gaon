@@ -199,12 +199,18 @@ window.hideUserAddPostForm = hideUserAddPostForm;
 // 이미지 압축 함수
 function compressImage(file, maxWidth = 800, quality = 0.7) {
     return new Promise((resolve, reject) => {
+        const fileId = 'file-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+        
         const reader = new FileReader();
         
         reader.onload = function(e) {
+            uploadProgress.updateProgress(fileId, 30, '이미지 로딩 중...');
+            
             const img = new Image();
             
             img.onload = function() {
+                uploadProgress.updateProgress(fileId, 50, '이미지 압축 중...');
+                
                 const canvas = document.createElement('canvas');
                 let width = img.width;
                 let height = img.height;
@@ -221,26 +227,115 @@ function compressImage(file, maxWidth = 800, quality = 0.7) {
                 const ctx = canvas.getContext('2d');
                 ctx.drawImage(img, 0, 0, width, height);
                 
+                uploadProgress.updateProgress(fileId, 80, '최종 처리 중...');
+                
                 // 압축된 이미지를 Base64로 변환
                 const compressedDataUrl = canvas.toDataURL('image/jpeg', quality);
                 console.log('원본 크기:', (e.target.result.length / 1024).toFixed(2), 'KB');
                 console.log('압축 후 크기:', (compressedDataUrl.length / 1024).toFixed(2), 'KB');
                 
+                uploadProgress.setComplete(fileId);
+                
                 resolve(compressedDataUrl);
             };
             
-            img.onerror = reject;
+            img.onerror = () => {
+                uploadProgress.setError(fileId, '이미지 로딩 실패');
+                reject(new Error('이미지 로딩 실패'));
+            };
             img.src = e.target.result;
         };
         
-        reader.onerror = reject;
+        reader.onerror = () => {
+            uploadProgress.setError(fileId, '파일 읽기 실패');
+            reject(new Error('파일 읽기 실패'));
+        };
         reader.readAsDataURL(file);
     });
 }
 
+// 업로드 프로그레스 관리
+const uploadProgress = {
+    modal: null,
+    container: null,
+    items: new Map(),
+    
+    show() {
+        this.modal = document.getElementById('uploadProgressModal');
+        this.container = document.getElementById('uploadProgressContainer');
+        this.modal.style.display = 'block';
+        this.items.clear();
+        this.container.innerHTML = '';
+    },
+    
+    hide() {
+        if (this.modal) {
+            this.modal.style.display = 'none';
+        }
+    },
+    
+    addFile(fileId, fileName, isVideo) {
+        const icon = isVideo ? '🎬' : '🖼️';
+        const itemHtml = `
+            <div class="upload-progress-item" id="progress-${fileId}">
+                <h4>
+                    <span class="file-icon">${icon}</span>
+                    <span class="file-name">${fileName}</span>
+                </h4>
+                <div class="progress-bar-container">
+                    <div class="progress-bar-fill" id="progress-bar-${fileId}" style="width: 0%">
+                        <span>0%</span>
+                    </div>
+                </div>
+                <div class="progress-status" id="progress-status-${fileId}">준비 중...</div>
+            </div>
+        `;
+        this.container.insertAdjacentHTML('beforeend', itemHtml);
+        this.items.set(fileId, { fileName, isVideo });
+    },
+    
+    updateProgress(fileId, percent, status) {
+        const progressBar = document.getElementById(`progress-bar-${fileId}`);
+        const progressStatus = document.getElementById(`progress-status-${fileId}`);
+        
+        if (progressBar) {
+            progressBar.style.width = percent + '%';
+            progressBar.querySelector('span').textContent = Math.round(percent) + '%';
+            
+            if (percent >= 100) {
+                progressBar.classList.add('completed');
+            }
+        }
+        
+        if (progressStatus && status) {
+            progressStatus.textContent = status;
+            if (percent >= 100) {
+                progressStatus.classList.add('completed');
+            }
+        }
+    },
+    
+    setComplete(fileId) {
+        this.updateProgress(fileId, 100, '✅ 완료');
+    },
+    
+    setError(fileId, errorMsg) {
+        const progressStatus = document.getElementById(`progress-status-${fileId}`);
+        if (progressStatus) {
+            progressStatus.textContent = '❌ ' + errorMsg;
+            progressStatus.style.color = '#dc3545';
+        }
+    }
+};
+
+// 전역 함수 등록
+window.uploadProgress = uploadProgress;
+
 // 비디오 파일 압축 함수
 function compressVideo(file, maxWidth = 640, fps = 24, quality = 0.6) {
     return new Promise((resolve, reject) => {
+        const fileId = 'file-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+        
         console.log('비디오 압축 시작:', file.name, (file.size / 1024 / 1024).toFixed(2), 'MB');
         
         const video = document.createElement('video');
@@ -278,11 +373,17 @@ function compressVideo(file, maxWidth = 640, fps = 24, quality = 0.6) {
                 
                 const frames = [];
                 const frameInterval = 1 / fps;
+                const totalFrames = Math.ceil(duration * fps);
                 let currentTime = 0;
+                let frameCount = 0;
+                
+                uploadProgress.updateProgress(fileId, 0, `프레임 추출 중... (0/${totalFrames})`);
                 
                 const captureFrame = () => {
                     if (currentTime >= duration) {
                         // 모든 프레임 캡처 완료
+                        uploadProgress.updateProgress(fileId, 90, '최종 처리 중...');
+                        
                         const compressedVideo = {
                             type: 'compressed-video',
                             frames: frames,
@@ -301,6 +402,8 @@ function compressVideo(file, maxWidth = 640, fps = 24, quality = 0.6) {
                         console.log('압축 후 크기:', compressedSize, 'MB');
                         console.log('압축률:', ((1 - compressedDataUrl.length / e.target.result.length) * 100).toFixed(1) + '%');
                         
+                        uploadProgress.setComplete(fileId);
+                        
                         resolve(compressedDataUrl);
                         return;
                     }
@@ -312,6 +415,10 @@ function compressVideo(file, maxWidth = 640, fps = 24, quality = 0.6) {
                     ctx.drawImage(video, 0, 0, width, height);
                     const frameData = canvas.toDataURL('image/jpeg', quality);
                     frames.push(frameData);
+                    
+                    frameCount++;
+                    const progress = (frameCount / totalFrames) * 90; // 90%까지만 (나머지 10%는 최종 처리)
+                    uploadProgress.updateProgress(fileId, progress, `프레임 추출 중... (${frameCount}/${totalFrames})`);
                     
                     currentTime += frameInterval;
                     captureFrame();
@@ -371,6 +478,16 @@ function addPost() {
             return;
         }
         
+        // 프로그레스 모달 표시
+        uploadProgress.show();
+        
+        // 각 파일에 대한 프로그레스 항목 추가
+        for (let i = 0; i < files.length; i++) {
+            const fileId = 'file-' + Date.now() + '-' + i;
+            const isVideo = isVideoFile(files[i]);
+            uploadProgress.addFile(fileId, files[i].name, isVideo);
+        }
+        
         const promises = [];
         
         for (let i = 0; i < files.length; i++) {
@@ -384,10 +501,17 @@ function addPost() {
         Promise.all(promises)
             .then(async processedMedia => {
                 console.log('모든 파일 처리 완료, 저장 시작');
+                
+                // 1초 후 모달 닫기 (사용자가 완료 상태를 볼 수 있도록)
+                setTimeout(() => {
+                    uploadProgress.hide();
+                }, 1000);
+                
                 await savePost(content, estimate, survey, processedMedia);
             })
             .catch(error => {
                 console.error('파일 처리 실패:', error);
+                uploadProgress.hide();
                 alert('❌ 파일 처리 중 오류가 발생했습니다.');
             });
     } else {
@@ -433,6 +557,16 @@ function addUserPost() {
             return;
         }
         
+        // 프로그레스 모달 표시
+        uploadProgress.show();
+        
+        // 각 파일에 대한 프로그레스 항목 추가
+        for (let i = 0; i < files.length; i++) {
+            const fileId = 'file-' + Date.now() + '-' + i;
+            const isVideo = isVideoFile(files[i]);
+            uploadProgress.addFile(fileId, files[i].name, isVideo);
+        }
+        
         const promises = [];
         
         for (let i = 0; i < files.length; i++) {
@@ -446,10 +580,17 @@ function addUserPost() {
         Promise.all(promises)
             .then(async processedMedia => {
                 console.log('모든 파일 처리 완료, 저장 시작');
+                
+                // 1초 후 모달 닫기
+                setTimeout(() => {
+                    uploadProgress.hide();
+                }, 1000);
+                
                 await saveUserPost(content, estimate, survey, processedMedia);
             })
             .catch(error => {
                 console.error('파일 처리 실패:', error);
+                uploadProgress.hide();
                 alert('❌ 파일 처리 중 오류가 발생했습니다.');
             });
     } else {

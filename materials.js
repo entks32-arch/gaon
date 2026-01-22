@@ -133,6 +133,16 @@ function addMaterial() {
             return;
         }
         
+        // 프로그레스 모달 표시
+        window.uploadProgress.show();
+        
+        // 각 파일에 대한 프로그레스 항목 추가
+        for (let i = 0; i < files.length; i++) {
+            const fileId = 'file-' + Date.now() + '-' + i;
+            const isVideo = window.isVideoFile(files[i]);
+            window.uploadProgress.addFile(fileId, files[i].name, isVideo);
+        }
+        
         const promises = [];
         
         for (let i = 0; i < files.length; i++) {
@@ -146,10 +156,17 @@ function addMaterial() {
         Promise.all(promises)
             .then(async processedMedia => {
                 console.log('모든 파일 처리 완료, 저장 시작');
+                
+                // 1초 후 모달 닫기
+                setTimeout(() => {
+                    window.uploadProgress.hide();
+                }, 1000);
+                
                 await saveMaterial(name, desc, price, processedMedia);
             })
             .catch(error => {
                 console.error('파일 처리 실패:', error);
+                window.uploadProgress.hide();
                 alert('❌ 파일 처리 중 오류가 발생했습니다.');
             });
     } else {
@@ -187,6 +204,16 @@ function addUserMaterial() {
             return;
         }
         
+        // 프로그레스 모달 표시
+        window.uploadProgress.show();
+        
+        // 각 파일에 대한 프로그레스 항목 추가
+        for (let i = 0; i < files.length; i++) {
+            const fileId = 'file-' + Date.now() + '-' + i;
+            const isVideo = window.isVideoFile(files[i]);
+            window.uploadProgress.addFile(fileId, files[i].name, isVideo);
+        }
+        
         const promises = [];
         
         for (let i = 0; i < files.length; i++) {
@@ -200,10 +227,17 @@ function addUserMaterial() {
         Promise.all(promises)
             .then(async processedMedia => {
                 console.log('모든 파일 처리 완료, 저장 시작');
+                
+                // 1초 후 모달 닫기
+                setTimeout(() => {
+                    window.uploadProgress.hide();
+                }, 1000);
+                
                 await saveUserMaterial(name, desc, price, processedMedia);
             })
             .catch(error => {
                 console.error('파일 처리 실패:', error);
+                window.uploadProgress.hide();
                 alert('❌ 파일 처리 중 오류가 발생했습니다.');
             });
     } else {
