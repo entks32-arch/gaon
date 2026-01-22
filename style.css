@@ -688,10 +688,59 @@ body {
     font-weight: bold;
     color: #aaa;
     cursor: pointer;
+    z-index: 1001;
 }
 
 .close:hover {
     color: #000;
+}
+
+/* 이미지 네비게이션 버튼 */
+.modal-nav-btn {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    background: rgba(0, 0, 0, 0.5);
+    color: white;
+    border: none;
+    padding: 15px 12px;
+    cursor: pointer;
+    font-size: 24px;
+    border-radius: 5px;
+    z-index: 1001;
+    transition: background 0.3s;
+}
+
+.modal-nav-btn:hover {
+    background: rgba(0, 0, 0, 0.8);
+}
+
+.modal-nav-btn span {
+    display: block;
+    line-height: 1;
+}
+
+.prev-btn {
+    left: 10px;
+}
+
+.next-btn {
+    right: 10px;
+}
+
+/* 이미지 카운터 */
+.image-counter {
+    position: absolute;
+    bottom: 15px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0, 0, 0, 0.7);
+    color: white;
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-size: 14px;
+    font-weight: bold;
+    z-index: 1001;
 }
 
 /* 빈 상태 */
@@ -789,6 +838,26 @@ body {
         padding: 3px 6px;
         bottom: 5px;
         right: 5px;
+    }
+    
+    /* 모달 네비게이션 버튼 - 모바일 */
+    .modal-nav-btn {
+        padding: 10px 8px;
+        font-size: 18px;
+    }
+    
+    .prev-btn {
+        left: 5px;
+    }
+    
+    .next-btn {
+        right: 5px;
+    }
+    
+    .image-counter {
+        bottom: 10px;
+        padding: 6px 12px;
+        font-size: 12px;
     }
     
     .header {

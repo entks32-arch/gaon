@@ -1036,15 +1036,40 @@ function searchPosts(userType) {
 window.searchPosts = searchPosts;
 
 // 이미지 모달 표시 (ID로 찾기)
+let currentImageIndex = 0;
+let currentPostImages = [];
+let currentPostId = null;
+
 function showImageModalById(postId, imageIndex) {
     const post = posts.find(p => p.id === postId);
     if (post && post.images[imageIndex]) {
+        currentPostId = postId;
+        currentPostImages = post.images;
+        currentImageIndex = imageIndex;
         showImageModal(post.images[imageIndex]);
+    }
+}
+
+// 다음 이미지
+function showNextImage() {
+    if (currentPostImages.length > 0) {
+        currentImageIndex = (currentImageIndex + 1) % currentPostImages.length;
+        showImageModal(currentPostImages[currentImageIndex]);
+    }
+}
+
+// 이전 이미지
+function showPreviousImage() {
+    if (currentPostImages.length > 0) {
+        currentImageIndex = (currentImageIndex - 1 + currentPostImages.length) % currentPostImages.length;
+        showImageModal(currentPostImages[currentImageIndex]);
     }
 }
 
 // 전역 함수 등록
 window.showImageModalById = showImageModalById;
+window.showNextImage = showNextImage;
+window.showPreviousImage = showPreviousImage;
 
 // 압축된 비디오 재생 함수
 function playCompressedVideo(videoData) {
@@ -1158,31 +1183,55 @@ function showImageModal(mediaSrc) {
     const isCompressedVideo = mediaSrc.startsWith('data:application/json;base64,');
     const isOriginalVideo = mediaSrc.startsWith('data:video/');
     
+    // 네비게이션 버튼 HTML
+    const navigationHTML = currentPostImages.length > 1 ? `
+        <button class="modal-nav-btn prev-btn" onclick="showPreviousImage()" title="이전 이미지">
+            <span>&#10094;</span>
+        </button>
+        <button class="modal-nav-btn next-btn" onclick="showNextImage()" title="다음 이미지">
+            <span>&#10095;</span>
+        </button>
+        <div class="image-counter">
+            ${currentImageIndex + 1} / ${currentPostImages.length}
+        </div>
+    ` : '';
+    
     if (isCompressedVideo) {
         // 압축된 비디오 재생
         playCompressedVideo(mediaSrc).then(canvas => {
-            modalContent.innerHTML = '';
-            modalContent.appendChild(canvas);
+            modalContent.innerHTML = `
+                <div style="position: relative;">
+                    ${navigationHTML}
+                </div>
+            `;
+            modalContent.querySelector('div').insertBefore(canvas, modalContent.querySelector('div').firstChild);
             modal.style.display = 'block';
         }).catch(error => {
             console.error('비디오 재생 실패:', error);
             modalContent.innerHTML = `
                 <div style="padding: 20px; text-align: center;">
                     <p>❌ 비디오를 재생할 수 없습니다.</p>
+                    ${navigationHTML}
                 </div>
             `;
             modal.style.display = 'block';
         });
     } else if (isOriginalVideo) {
         modalContent.innerHTML = `
-            <video src="${mediaSrc}" style="width: 100%; border-radius: 10px;" controls autoplay>
-                브라우저가 비디오를 지원하지 않습니다.
-            </video>
+            <div style="position: relative;">
+                <video src="${mediaSrc}" style="width: 100%; border-radius: 10px;" controls autoplay>
+                    브라우저가 비디오를 지원하지 않습니다.
+                </video>
+                ${navigationHTML}
+            </div>
         `;
         modal.style.display = 'block';
     } else {
         modalContent.innerHTML = `
-            <img src="${mediaSrc}" style="width: 100%; border-radius: 10px;">
+            <div style="position: relative;">
+                <img src="${mediaSrc}" style="width: 100%; border-radius: 10px;">
+                ${navigationHTML}
+            </div>
         `;
         modal.style.display = 'block';
     }
@@ -1191,6 +1240,10 @@ function showImageModal(mediaSrc) {
 // 모달 닫기
 function closeModal() {
     document.getElementById('postModal').style.display = 'none';
+    // 상태 초기화
+    currentImageIndex = 0;
+    currentPostImages = [];
+    currentPostId = null;
 }
 
 // 전역 함수 등록
@@ -1203,6 +1256,20 @@ document.addEventListener('DOMContentLoaded', function() {
     (async function() {
         await initDatabase();
     })();
+    
+    // 키보드 이벤트 리스너 (이미지 네비게이션)
+    document.addEventListener('keydown', function(e) {
+        const modal = document.getElementById('postModal');
+        if (modal && modal.style.display === 'block' && currentPostImages.length > 1) {
+            if (e.key === 'ArrowLeft') {
+                showPreviousImage();
+            } else if (e.key === 'ArrowRight') {
+                showNextImage();
+            } else if (e.key === 'Escape') {
+                closeModal();
+            }
+        }
+    });
     
     // 로그인 관련 이벤트
     const loginButton = document.getElementById('loginButton');
