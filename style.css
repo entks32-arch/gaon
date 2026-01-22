@@ -365,6 +365,28 @@ body {
     background: #c82333;
 }
 
+.btn-edit {
+    padding: 8px 16px;
+    background: #ffc107;
+    color: #333;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background 0.3s;
+    margin-right: 8px;
+}
+
+.btn-edit:hover {
+    background: #e0a800;
+}
+
+.post-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
 /* 게시글 폼 */
 .post-form {
     background: white;

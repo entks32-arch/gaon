@@ -35,9 +35,25 @@ async function loadData() {
 // 전역 함수 등록
 window.loadData = loadData;
 
+// 간단한 비밀번호 해싱 함수 (SHA-256)
+async function hashPassword(password) {
+    const encoder = new TextEncoder();
+    const data = encoder.encode(password);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    return hashHex;
+}
+
+// 전역 함수 등록
+window.hashPassword = hashPassword;
+
 // 데이터 저장 (Firebase Firestore 저장)
-async function savePost(content, estimate, survey, images) {
+async function savePost(content, estimate, survey, images, password) {
     console.log('게시글 저장 시작:', { content, estimate, survey, imagesCount: images.length });
+    
+    // 비밀번호 해싱
+    const hashedPassword = password ? await hashPassword(password) : null;
     
     const post = {
         id: Date.now(),
@@ -45,6 +61,7 @@ async function savePost(content, estimate, survey, images) {
         estimate: estimate,
         survey: survey,
         images: images,
+        password: hashedPassword,
         date: new Date().toLocaleString('ko-KR')
     };
     
@@ -178,6 +195,7 @@ function clearForm() {
     document.getElementById('adminContent').value = '';
     document.getElementById('adminEstimate').value = '';
     document.getElementById('adminSurvey').value = '했음';
+    document.getElementById('adminPassword').value = '';
     document.getElementById('adminImage').value = '';
 }
 
@@ -186,6 +204,7 @@ function clearUserForm() {
     document.getElementById('userContent').value = '';
     document.getElementById('userEstimate').value = '';
     document.getElementById('userSurvey').value = '했음';
+    document.getElementById('userPassword').value = '';
     document.getElementById('userImage').value = '';
 }
 
@@ -469,6 +488,7 @@ function addPost() {
     const content = document.getElementById('adminContent').value.trim();
     const estimate = document.getElementById('adminEstimate').value.trim();
     const survey = document.getElementById('adminSurvey').value;
+    const password = document.getElementById('adminPassword').value.trim();
     const imageInput = document.getElementById('adminImage');
     
     console.log('입력값:', { content, estimate, survey, filesCount: imageInput.files.length });
@@ -480,6 +500,11 @@ function addPost() {
     
     if (!estimate) {
         alert('❌ 견적을 입력하세요.');
+        return;
+    }
+    
+    if (!password || password.length !== 4) {
+        alert('❌ 4자리 수정 비밀번호를 입력하세요.');
         return;
     }
     
@@ -525,7 +550,7 @@ function addPost() {
                     uploadProgress.hide();
                 }, 1000);
                 
-                await savePost(content, estimate, survey, processedMedia);
+                await savePost(content, estimate, survey, processedMedia, password);
             })
             .catch(error => {
                 console.error('파일 처리 실패:', error);
@@ -534,7 +559,7 @@ function addPost() {
             });
     } else {
         console.log('파일 없이 저장');
-        savePost(content, estimate, survey, media);
+        savePost(content, estimate, survey, media, password);
     }
 }
 
@@ -548,6 +573,7 @@ function addUserPost() {
     const content = document.getElementById('userContent').value.trim();
     const estimate = document.getElementById('userEstimate').value.trim();
     const survey = document.getElementById('userSurvey').value;
+    const password = document.getElementById('userPassword').value.trim();
     const imageInput = document.getElementById('userImage');
     
     console.log('입력값:', { content, estimate, survey, filesCount: imageInput.files.length });
@@ -559,6 +585,11 @@ function addUserPost() {
     
     if (!estimate) {
         alert('❌ 견적을 입력하세요.');
+        return;
+    }
+    
+    if (!password || password.length !== 4) {
+        alert('❌ 4자리 수정 비밀번호를 입력하세요.');
         return;
     }
     
@@ -604,7 +635,7 @@ function addUserPost() {
                     uploadProgress.hide();
                 }, 1000);
                 
-                await saveUserPost(content, estimate, survey, processedMedia);
+                await saveUserPost(content, estimate, survey, processedMedia, password);
             })
             .catch(error => {
                 console.error('파일 처리 실패:', error);
@@ -613,13 +644,16 @@ function addUserPost() {
             });
     } else {
         console.log('파일 없이 저장');
-        saveUserPost(content, estimate, survey, media);
+        saveUserPost(content, estimate, survey, media, password);
     }
 }
 
 // 사용자 게시글 저장
-async function saveUserPost(content, estimate, survey, images) {
+async function saveUserPost(content, estimate, survey, images, password) {
     console.log('사용자 게시글 저장 시작:', { content, estimate, survey, imagesCount: images.length });
+    
+    // 비밀번호 해싱
+    const hashedPassword = password ? await hashPassword(password) : null;
     
     const post = {
         id: Date.now(),
@@ -627,6 +661,7 @@ async function saveUserPost(content, estimate, survey, images) {
         estimate: estimate,
         survey: survey,
         images: images,
+        password: hashedPassword,
         date: new Date().toLocaleString('ko-KR')
     };
     
@@ -755,9 +790,14 @@ function renderPosts(userType) {
         <div class="post-item">
             <div class="post-header">
                 <div class="post-date">📅 ${post.date}</div>
-                ${userType === 'admin' ? `
-                    <button class="btn-danger" onclick="deletePost(${post.id})">🗑️ 삭제</button>
-                ` : ''}
+                <div class="post-actions">
+                    ${post.password ? `
+                        <button class="btn-edit" onclick="showEditPost(${post.id})">✏️ 수정</button>
+                    ` : ''}
+                    ${userType === 'admin' ? `
+                        <button class="btn-danger" onclick="deletePost(${post.id})">🗑️ 삭제</button>
+                    ` : ''}
+                </div>
             </div>
             
             <div class="post-content">
@@ -868,9 +908,14 @@ function searchPosts(userType) {
         <div class="post-item">
             <div class="post-header">
                 <div class="post-date">📅 ${post.date}</div>
-                ${userType === 'admin' ? `
-                    <button class="btn-danger" onclick="deletePost(${post.id})">🗑️ 삭제</button>
-                ` : ''}
+                <div class="post-actions">
+                    ${post.password ? `
+                        <button class="btn-edit" onclick="showEditPost(${post.id})">✏️ 수정</button>
+                    ` : ''}
+                    ${userType === 'admin' ? `
+                        <button class="btn-danger" onclick="deletePost(${post.id})">🗑️ 삭제</button>
+                    ` : ''}
+                </div>
             </div>
             
             <div class="post-content">
@@ -1283,4 +1328,130 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
+    
+    // 수정 모달 닫기 버튼
+    const editModalCloseButton = document.getElementById('editModalCloseButton');
+    if (editModalCloseButton) {
+        editModalCloseButton.addEventListener('click', closeEditModal);
+    }
+    
+    const cancelEditButton = document.getElementById('cancelEditButton');
+    if (cancelEditButton) {
+        cancelEditButton.addEventListener('click', closeEditModal);
+    }
+    
+    const saveEditButton = document.getElementById('saveEditButton');
+    if (saveEditButton) {
+        saveEditButton.addEventListener('click', saveEditedPost);
+    }
 });
+
+// 게시글 수정 관련 전역 변수
+let currentEditingPostId = null;
+
+// 게시글 수정 모달 표시
+async function showEditPost(postId) {
+    const post = posts.find(p => p.id === postId);
+    if (!post) {
+        alert('❌ 게시글을 찾을 수 없습니다.');
+        return;
+    }
+    
+    if (!post.password) {
+        alert('❌ 이 게시글은 수정할 수 없습니다.');
+        return;
+    }
+    
+    // 비밀번호 확인
+    const inputPassword = prompt('수정 비밀번호를 입력하세요 (4자리):');
+    if (!inputPassword) return;
+    
+    try {
+        const hashedInput = await hashPassword(inputPassword);
+        
+        if (hashedInput !== post.password) {
+            alert('❌ 비밀번호가 일치하지 않습니다.');
+            return;
+        }
+        
+        // 비밀번호 일치, 수정 모달 표시
+        currentEditingPostId = postId;
+        
+        document.getElementById('editContent').value = post.content;
+        document.getElementById('editEstimate').value = post.estimate;
+        document.getElementById('editSurvey').value = post.survey;
+        
+        const editModal = document.getElementById('editPostModal');
+        editModal.style.display = 'block';
+        
+    } catch (error) {
+        console.error('비밀번호 확인 실패:', error);
+        alert('❌ 오류가 발생했습니다.');
+    }
+}
+
+// 수정 모달 닫기
+function closeEditModal() {
+    const editModal = document.getElementById('editPostModal');
+    editModal.style.display = 'none';
+    currentEditingPostId = null;
+}
+
+// 수정된 게시글 저장
+async function saveEditedPost() {
+    if (!currentEditingPostId) return;
+    
+    const content = document.getElementById('editContent').value.trim();
+    const estimate = document.getElementById('editEstimate').value.trim();
+    const survey = document.getElementById('editSurvey').value;
+    
+    if (!content) {
+        alert('❌ 시공 내용을 입력하세요.');
+        return;
+    }
+    
+    if (!estimate) {
+        alert('❌ 견적을 입력하세요.');
+        return;
+    }
+    
+    try {
+        const post = posts.find(p => p.id === currentEditingPostId);
+        
+        if (!post) {
+            alert('❌ 게시글을 찾을 수 없습니다.');
+            return;
+        }
+        
+        // 업데이트할 데이터
+        const updatedPost = {
+            ...post,
+            content: content,
+            estimate: estimate,
+            survey: survey,
+            date: new Date().toLocaleString('ko-KR') + ' (수정됨)'
+        };
+        
+        await window.postDB.updatePost(currentEditingPostId, updatedPost);
+        await loadData();
+        
+        // 현재 화면 타입에 따라 렌더링
+        if (currentUser === 'admin') {
+            renderPosts('admin');
+        } else {
+            renderPosts('user');
+        }
+        
+        closeEditModal();
+        alert('✅ 게시글이 수정되었습니다.');
+        
+    } catch (error) {
+        console.error('게시글 수정 실패:', error);
+        alert('❌ 게시글 수정 중 오류가 발생했습니다.');
+    }
+}
+
+// 전역 함수 등록
+window.showEditPost = showEditPost;
+window.closeEditModal = closeEditModal;
+window.saveEditedPost = saveEditedPost;

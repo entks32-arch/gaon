@@ -5,7 +5,8 @@ import {
     collection, 
     addDoc, 
     getDocs, 
-    deleteDoc, 
+    deleteDoc,
+    updateDoc,
     doc
 } from 'https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore.js';
 
@@ -126,6 +127,25 @@ class PostDatabase {
             }
         } catch (error) {
             console.error('게시글 삭제 실패:', error);
+            throw error;
+        }
+    }
+
+    // 게시글 수정
+    async updatePost(postId, updatedData) {
+        try {
+            const posts = await this.getAllPosts();
+            const post = posts.find(p => p.id === postId);
+            
+            if (post && post.firestoreId) {
+                await updateDoc(doc(this.db, this.postsCollection, post.firestoreId), updatedData);
+                console.log('게시글 수정 성공:', postId);
+                return post.firestoreId;
+            } else {
+                throw new Error('게시글을 찾을 수 없습니다.');
+            }
+        } catch (error) {
+            console.error('게시글 수정 실패:', error);
             throw error;
         }
     }
