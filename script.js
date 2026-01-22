@@ -805,7 +805,7 @@ async function updateStorageInfo() {
     }
 }
 
-// 게시글 렌더링
+// 게시글 렌더링 (앨범형 그리드)
 function renderPosts(userType) {
     const listId = userType === 'admin' ? 'adminPostList' : 'userPostList';
     const listElement = document.getElementById(listId);
@@ -824,62 +824,60 @@ function renderPosts(userType) {
         const formattedContent = formatText(post.content);
         const escapedEstimate = escapeHtml(post.estimate);
         
+        // 썸네일 이미지 가져오기 (첫 번째 이미지)
+        const thumbnail = post.images.length > 0 ? post.images[0] : null;
+        const isVideoThumbnail = thumbnail && (thumbnail.startsWith('data:video/') || thumbnail.startsWith('data:application/json;base64,'));
+        
         return `
-        <div class="post-item">
+        <div class="post-item" onclick="showPostDetail(${post.id})">
             <div class="post-header">
                 <div class="post-date">📅 ${post.date}</div>
-                <div class="post-actions">
+                <div class="post-actions" onclick="event.stopPropagation()">
                     ${post.password ? `
-                        <button class="btn-edit" onclick="showEditPost(${post.id})">✏️ 수정</button>
-                        <button class="btn-danger" onclick="deletePost(${post.id})">🗑️ 삭제</button>
+                        <button class="btn-edit" onclick="event.stopPropagation(); showEditPost(${post.id})">✏️</button>
+                        <button class="btn-danger" onclick="event.stopPropagation(); deletePost(${post.id})">🗑️</button>
                     ` : ''}
                     ${(userType === 'admin' && !post.password) ? `
-                        <button class="btn-danger" onclick="deletePost(${post.id})">🗑️ 삭제</button>
+                        <button class="btn-danger" onclick="event.stopPropagation(); deletePost(${post.id})">🗑️</button>
                     ` : ''}
                 </div>
             </div>
             
+            <div class="post-thumbnail">
+                ${thumbnail ? `
+                    ${isVideoThumbnail ? `
+                        <div class="video-container" style="width: 100%; height: 100%;">
+                            <div class="video-placeholder">
+                                <div class="play-icon">▶</div>
+                            </div>
+                        </div>
+                    ` : `
+                        <img src="${thumbnail}" alt="썸네일">
+                    `}
+                    ${post.images.length > 1 ? `
+                        <div class="image-count">📷 ${post.images.length}</div>
+                    ` : ''}
+                ` : `
+                    <div class="no-image">📷</div>
+                `}
+            </div>
+            
             <div class="post-content">
-                <h3>📝 시공 내용</h3>
                 <p class="formatted-text">${formattedContent}</p>
             </div>
             
             <div class="post-details">
                 <div class="detail-item">
-                    <div class="detail-label">💰 견적</div>
-                    <div class="detail-value">${escapedEstimate}</div>
+                    <span class="detail-label">💰</span>
+                    <span class="detail-value">${escapedEstimate}</span>
                 </div>
                 <div class="detail-item">
-                    <div class="detail-label">📏 실측 여부</div>
-                    <div class="detail-value ${post.survey === '했음' ? 'survey-yes' : 'survey-no'}">
+                    <span class="detail-label">📏</span>
+                    <span class="detail-value ${post.survey === '했음' ? 'survey-yes' : 'survey-no'}">
                         ${post.survey === '했음' ? '✅' : '❌'} ${post.survey}
-                    </div>
+                    </span>
                 </div>
             </div>
-            
-            ${post.images.length > 0 ? `
-                <div class="post-images">
-                    ${post.images.map((media, index) => {
-                        const isVideo = media.startsWith('data:video/') || media.startsWith('data:application/json;base64,');
-                        if (isVideo) {
-                            return `
-                                <div class="post-image video-container" onclick="showImageModalById(${post.id}, ${index})" 
-                                     data-video-data="${media.replace(/"/g, '&quot;')}">
-                                    <div class="video-placeholder">
-                                        <div class="play-icon">▶</div>
-                                        <small>클릭하여 재생</small>
-                                    </div>
-                                </div>
-                            `;
-                        } else {
-                            return `
-                                <img src="${media}" alt="시공 이미지 ${index + 1}" class="post-image" 
-                                     onclick="showImageModalById(${post.id}, ${index})">
-                            `;
-                        }
-                    }).join('')}
-                </div>
-            ` : ''}
         </div>
     `;
     }).join('');
@@ -943,62 +941,60 @@ function searchPosts(userType) {
         const formattedContent = formatText(post.content);
         const escapedEstimate = escapeHtml(post.estimate);
         
+        // 썸네일 이미지 가져오기 (첫 번째 이미지)
+        const thumbnail = post.images.length > 0 ? post.images[0] : null;
+        const isVideoThumbnail = thumbnail && (thumbnail.startsWith('data:video/') || thumbnail.startsWith('data:application/json;base64,'));
+        
         return `
-        <div class="post-item">
+        <div class="post-item" onclick="showPostDetail(${post.id})">
             <div class="post-header">
                 <div class="post-date">📅 ${post.date}</div>
-                <div class="post-actions">
+                <div class="post-actions" onclick="event.stopPropagation()">
                     ${post.password ? `
-                        <button class="btn-edit" onclick="showEditPost(${post.id})">✏️ 수정</button>
-                        <button class="btn-danger" onclick="deletePost(${post.id})">🗑️ 삭제</button>
+                        <button class="btn-edit" onclick="event.stopPropagation(); showEditPost(${post.id})">✏️</button>
+                        <button class="btn-danger" onclick="event.stopPropagation(); deletePost(${post.id})">🗑️</button>
                     ` : ''}
                     ${(userType === 'admin' && !post.password) ? `
-                        <button class="btn-danger" onclick="deletePost(${post.id})">🗑️ 삭제</button>
+                        <button class="btn-danger" onclick="event.stopPropagation(); deletePost(${post.id})">🗑️</button>
                     ` : ''}
                 </div>
             </div>
             
+            <div class="post-thumbnail">
+                ${thumbnail ? `
+                    ${isVideoThumbnail ? `
+                        <div class="video-container" style="width: 100%; height: 100%;">
+                            <div class="video-placeholder">
+                                <div class="play-icon">▶</div>
+                            </div>
+                        </div>
+                    ` : `
+                        <img src="${thumbnail}" alt="썸네일">
+                    `}
+                    ${post.images.length > 1 ? `
+                        <div class="image-count">📷 ${post.images.length}</div>
+                    ` : ''}
+                ` : `
+                    <div class="no-image">📷</div>
+                `}
+            </div>
+            
             <div class="post-content">
-                <h3>📝 시공 내용</h3>
                 <p class="formatted-text">${formattedContent}</p>
             </div>
             
             <div class="post-details">
                 <div class="detail-item">
-                    <div class="detail-label">💰 견적</div>
-                    <div class="detail-value">${escapedEstimate}</div>
+                    <span class="detail-label">💰</span>
+                    <span class="detail-value">${escapedEstimate}</span>
                 </div>
                 <div class="detail-item">
-                    <div class="detail-label">📏 실측 여부</div>
-                    <div class="detail-value ${post.survey === '했음' ? 'survey-yes' : 'survey-no'}">
+                    <span class="detail-label">📏</span>
+                    <span class="detail-value ${post.survey === '했음' ? 'survey-yes' : 'survey-no'}">
                         ${post.survey === '했음' ? '✅' : '❌'} ${post.survey}
-                    </div>
+                    </span>
                 </div>
             </div>
-            
-            ${post.images.length > 0 ? `
-                <div class="post-images">
-                    ${post.images.map((media, index) => {
-                        const isVideo = media.startsWith('data:video/') || media.startsWith('data:application/json;base64,');
-                        if (isVideo) {
-                            return `
-                                <div class="post-image video-container" onclick="showImageModalById(${post.id}, ${index})" 
-                                     data-video-data="${media.replace(/"/g, '&quot;')}">
-                                    <div class="video-placeholder">
-                                        <div class="play-icon">▶</div>
-                                        <small>클릭하여 재생</small>
-                                    </div>
-                                </div>
-                            `;
-                        } else {
-                            return `
-                                <img src="${media}" alt="시공 이미지 ${index + 1}" class="post-image" 
-                                     onclick="showImageModalById(${post.id}, ${index})">
-                            `;
-                        }
-                    }).join('')}
-                </div>
-            ` : ''}
         </div>
     `;
     }).join('');
@@ -1491,7 +1487,87 @@ async function saveEditedPost() {
     }
 }
 
+// 게시글 상세보기 표시
+function showPostDetail(postId) {
+    const post = posts.find(p => p.id === postId);
+    if (!post) return;
+    
+    const modal = document.getElementById('postModal');
+    const modalContent = document.getElementById('modalPostContent');
+    
+    const formattedContent = formatText(post.content);
+    const escapedEstimate = escapeHtml(post.estimate);
+    
+    modalContent.innerHTML = `
+        <div style="max-width: 100%;">
+            <div style="margin-bottom: 20px; padding-bottom: 15px; border-bottom: 2px solid #f0f0f0;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <div style="color: #999; font-size: 14px;">📅 ${post.date}</div>
+                    <div style="display: flex; gap: 8px;">
+                        ${post.password && currentUser ? `
+                            <button class="btn-edit" onclick="closeModal(); showEditPost(${post.id})">✏️ 수정</button>
+                            <button class="btn-danger" onclick="closeModal(); deletePost(${post.id})">🗑️ 삭제</button>
+                        ` : ''}
+                        ${(!post.password && currentUser === 'admin') ? `
+                            <button class="btn-danger" onclick="closeModal(); deletePost(${post.id})">🗑️ 삭제</button>
+                        ` : ''}
+                    </div>
+                </div>
+            </div>
+            
+            <div style="margin-bottom: 20px;">
+                <h3 style="color: #333; margin-bottom: 15px; font-size: 18px;">📝 시공 내용</h3>
+                <p style="white-space: pre-wrap; word-wrap: break-word; line-height: 1.8; color: #444; font-size: 15px;">${formattedContent}</p>
+            </div>
+            
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px;">
+                <div style="padding: 15px; background: #f8f9fa; border-radius: 8px;">
+                    <div style="font-weight: bold; color: #666; font-size: 14px; margin-bottom: 8px;">💰 견적</div>
+                    <div style="color: #333; font-size: 16px;">${escapedEstimate}</div>
+                </div>
+                <div style="padding: 15px; background: #f8f9fa; border-radius: 8px;">
+                    <div style="font-weight: bold; color: #666; font-size: 14px; margin-bottom: 8px;">📏 실측 여부</div>
+                    <div style="color: #333; font-size: 16px; font-weight: bold;" class="${post.survey === '했음' ? 'survey-yes' : 'survey-no'}">
+                        ${post.survey === '했음' ? '✅' : '❌'} ${post.survey}
+                    </div>
+                </div>
+            </div>
+            
+            ${post.images.length > 0 ? `
+                <div style="margin-top: 20px;">
+                    <h3 style="color: #333; margin-bottom: 15px; font-size: 18px;">📷 첨부 파일 (${post.images.length})</h3>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px;">
+                        ${post.images.map((media, index) => {
+                            const isVideo = media.startsWith('data:video/') || media.startsWith('data:application/json;base64,');
+                            if (isVideo) {
+                                return `
+                                    <div class="post-image video-container" onclick="event.stopPropagation(); showImageModalById(${post.id}, ${index})" 
+                                         data-video-data="${media.replace(/"/g, '&quot;')}" style="cursor: pointer;">
+                                        <div class="video-placeholder">
+                                            <div class="play-icon">▶</div>
+                                            <small>클릭하여 재생</small>
+                                        </div>
+                                    </div>
+                                `;
+                            } else {
+                                return `
+                                    <img src="${media}" alt="시공 이미지 ${index + 1}" 
+                                         style="width: 100%; height: 150px; object-fit: cover; border-radius: 8px; cursor: pointer;"
+                                         onclick="event.stopPropagation(); showImageModalById(${post.id}, ${index})">
+                                `;
+                            }
+                        }).join('')}
+                    </div>
+                </div>
+            ` : ''}
+        </div>
+    `;
+    
+    modal.style.display = 'block';
+}
+
 // 전역 함수 등록
+window.showPostDetail = showPostDetail;
 window.showEditPost = showEditPost;
 window.closeEditModal = closeEditModal;
 window.saveEditedPost = saveEditedPost;
