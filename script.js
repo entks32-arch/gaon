@@ -49,14 +49,15 @@ async function hashPassword(password) {
 window.hashPassword = hashPassword;
 
 // 데이터 저장 (Firebase Firestore 저장)
-async function savePost(content, estimate, survey, images, password) {
-    console.log('게시글 저장 시작:', { content, estimate, survey, imagesCount: images.length });
+async function savePost(worker, content, estimate, survey, images, password) {
+    console.log('게시글 저장 시작:', { worker, content, estimate, survey, imagesCount: images.length });
     
     // 비밀번호 해싱
     const hashedPassword = password ? await hashPassword(password) : null;
     
     const post = {
         id: Date.now(),
+        worker: worker,
         content: content,
         estimate: estimate,
         survey: survey,
@@ -192,6 +193,7 @@ function hideUserAddPostForm() {
 
 // 폼 초기화
 function clearForm() {
+    document.getElementById('adminWorker').value = '';
     document.getElementById('adminContent').value = `작업내용 : 
 
 현장변수 : `;
@@ -203,6 +205,7 @@ function clearForm() {
 
 // 사용자 폼 초기화
 function clearUserForm() {
+    document.getElementById('userWorker').value = '';
     document.getElementById('userContent').value = `작업내용 : 
 
 현장변수 : `;
@@ -489,13 +492,19 @@ window.isVideoFile = isVideoFile;
 function addPost() {
     console.log('게시글 등록 시작');
     
+    const worker = document.getElementById('adminWorker').value.trim();
     const content = document.getElementById('adminContent').value.trim();
     const estimate = document.getElementById('adminEstimate').value.trim();
     const survey = document.getElementById('adminSurvey').value;
     const password = document.getElementById('adminPassword').value.trim();
     const imageInput = document.getElementById('adminImage');
     
-    console.log('입력값:', { content, estimate, survey, filesCount: imageInput.files.length });
+    console.log('입력값:', { worker, content, estimate, survey, filesCount: imageInput.files.length });
+    
+    if (!worker) {
+        alert('❌ 시공자를 입력하세요.');
+        return;
+    }
     
     if (!content) {
         alert('❌ 시공 내용을 입력하세요.');
@@ -554,7 +563,7 @@ function addPost() {
                     uploadProgress.hide();
                 }, 1000);
                 
-                await savePost(content, estimate, survey, processedMedia, password);
+                await savePost(worker, content, estimate, survey, processedMedia, password);
             })
             .catch(error => {
                 console.error('파일 처리 실패:', error);
@@ -563,7 +572,7 @@ function addPost() {
             });
     } else {
         console.log('파일 없이 저장');
-        savePost(content, estimate, survey, media, password);
+        savePost(worker, content, estimate, survey, media, password);
     }
 }
 
@@ -574,13 +583,19 @@ window.addPost = addPost;
 function addUserPost() {
     console.log('사용자 게시글 등록 시작');
     
+    const worker = document.getElementById('userWorker').value.trim();
     const content = document.getElementById('userContent').value.trim();
     const estimate = document.getElementById('userEstimate').value.trim();
     const survey = document.getElementById('userSurvey').value;
     const password = document.getElementById('userPassword').value.trim();
     const imageInput = document.getElementById('userImage');
     
-    console.log('입력값:', { content, estimate, survey, filesCount: imageInput.files.length });
+    console.log('입력값:', { worker, content, estimate, survey, filesCount: imageInput.files.length });
+    
+    if (!worker) {
+        alert('❌ 시공자를 입력하세요.');
+        return;
+    }
     
     if (!content) {
         alert('❌ 시공 내용을 입력하세요.');
@@ -639,7 +654,7 @@ function addUserPost() {
                     uploadProgress.hide();
                 }, 1000);
                 
-                await saveUserPost(content, estimate, survey, processedMedia, password);
+                await saveUserPost(worker, content, estimate, survey, processedMedia, password);
             })
             .catch(error => {
                 console.error('파일 처리 실패:', error);
@@ -648,19 +663,20 @@ function addUserPost() {
             });
     } else {
         console.log('파일 없이 저장');
-        saveUserPost(content, estimate, survey, media, password);
+        saveUserPost(worker, content, estimate, survey, media, password);
     }
 }
 
 // 사용자 게시글 저장
-async function saveUserPost(content, estimate, survey, images, password) {
-    console.log('사용자 게시글 저장 시작:', { content, estimate, survey, imagesCount: images.length });
+async function saveUserPost(worker, content, estimate, survey, images, password) {
+    console.log('사용자 게시글 저장 시작:', { worker, content, estimate, survey, imagesCount: images.length });
     
     // 비밀번호 해싱
     const hashedPassword = password ? await hashPassword(password) : null;
     
     const post = {
         id: Date.now(),
+        worker: worker,
         content: content,
         estimate: estimate,
         survey: survey,
@@ -823,6 +839,7 @@ function renderPosts(userType) {
     listElement.innerHTML = posts.map(post => {
         const formattedContent = formatText(post.content);
         const escapedEstimate = escapeHtml(post.estimate);
+        const escapedWorker = escapeHtml(post.worker || '미지정');
         
         // 썸네일 이미지 가져오기 (첫 번째 이미지)
         const thumbnail = post.images.length > 0 ? post.images[0] : null;
@@ -867,6 +884,10 @@ function renderPosts(userType) {
             </div>
             
             <div class="post-details">
+                <div class="detail-item">
+                    <span class="detail-label">👷</span>
+                    <span class="detail-value">${escapedWorker}</span>
+                </div>
                 <div class="detail-item">
                     <span class="detail-label">💰</span>
                     <span class="detail-value">${escapedEstimate}</span>
@@ -921,7 +942,8 @@ function searchPosts(userType) {
     const filteredPosts = posts.filter(post => {
         return post.content.toLowerCase().includes(searchTerm) ||
                post.estimate.toLowerCase().includes(searchTerm) ||
-               post.survey.toLowerCase().includes(searchTerm);
+               post.survey.toLowerCase().includes(searchTerm) ||
+               (post.worker && post.worker.toLowerCase().includes(searchTerm));
     });
     
     const listId = userType === 'admin' ? 'adminPostList' : 'userPostList';
@@ -940,6 +962,7 @@ function searchPosts(userType) {
     listElement.innerHTML = filteredPosts.map(post => {
         const formattedContent = formatText(post.content);
         const escapedEstimate = escapeHtml(post.estimate);
+        const escapedWorker = escapeHtml(post.worker || '미지정');
         
         // 썸네일 이미지 가져오기 (첫 번째 이미지)
         const thumbnail = post.images.length > 0 ? post.images[0] : null;
@@ -984,6 +1007,10 @@ function searchPosts(userType) {
             </div>
             
             <div class="post-details">
+                <div class="detail-item">
+                    <span class="detail-label">👷</span>
+                    <span class="detail-value">${escapedWorker}</span>
+                </div>
                 <div class="detail-item">
                     <span class="detail-label">💰</span>
                     <span class="detail-value">${escapedEstimate}</span>
@@ -1413,6 +1440,7 @@ async function showEditPost(postId) {
         // 비밀번호 일치, 수정 모달 표시
         currentEditingPostId = postId;
         
+        document.getElementById('editWorker').value = post.worker || '';
         document.getElementById('editContent').value = post.content;
         document.getElementById('editEstimate').value = post.estimate;
         document.getElementById('editSurvey').value = post.survey;
@@ -1437,9 +1465,15 @@ function closeEditModal() {
 async function saveEditedPost() {
     if (!currentEditingPostId) return;
     
+    const worker = document.getElementById('editWorker').value.trim();
     const content = document.getElementById('editContent').value.trim();
     const estimate = document.getElementById('editEstimate').value.trim();
     const survey = document.getElementById('editSurvey').value;
+    
+    if (!worker) {
+        alert('❌ 시공자를 입력하세요.');
+        return;
+    }
     
     if (!content) {
         alert('❌ 시공 내용을 입력하세요.');
@@ -1462,6 +1496,7 @@ async function saveEditedPost() {
         // 업데이트할 데이터
         const updatedPost = {
             ...post,
+            worker: worker,
             content: content,
             estimate: estimate,
             survey: survey,
@@ -1497,6 +1532,7 @@ function showPostDetail(postId) {
     
     const formattedContent = formatText(post.content);
     const escapedEstimate = escapeHtml(post.estimate);
+    const escapedWorker = escapeHtml(post.worker || '미지정');
     
     modalContent.innerHTML = `
         <div style="max-width: 100%;">
@@ -1521,6 +1557,10 @@ function showPostDetail(postId) {
             </div>
             
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px;">
+                <div style="padding: 15px; background: #f8f9fa; border-radius: 8px;">
+                    <div style="font-weight: bold; color: #666; font-size: 14px; margin-bottom: 8px;">👷 시공자</div>
+                    <div style="color: #333; font-size: 16px;">${escapedWorker}</div>
+                </div>
                 <div style="padding: 15px; background: #f8f9fa; border-radius: 8px;">
                     <div style="font-weight: bold; color: #666; font-size: 14px; margin-bottom: 8px;">💰 견적</div>
                     <div style="color: #333; font-size: 16px;">${escapedEstimate}</div>

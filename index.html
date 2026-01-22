@@ -85,6 +85,10 @@
             <div id="addPostForm" class="post-form" style="display: none;">
                 <h3>게시글 등록</h3>
                 <div class="form-group">
+                    <label>시공자</label>
+                    <input type="text" id="adminWorker" placeholder="시공자 이름 입력" />
+                </div>
+                <div class="form-group">
                     <label>시공 내용</label>
                     <textarea id="adminContent" rows="8">작업내용 : 
 
@@ -209,6 +213,10 @@
             <div id="userAddPostForm" class="post-form" style="display: none;">
                 <h3>게시글 등록</h3>
                 <div class="form-group">
+                    <label>시공자</label>
+                    <input type="text" id="userWorker" placeholder="시공자 이름 입력" />
+                </div>
+                <div class="form-group">
                     <label>시공 내용</label>
                     <textarea id="userContent" rows="8">작업내용 : 
 
@@ -323,6 +331,10 @@
             <span class="close" id="editModalCloseButton">&times;</span>
             <h3 style="margin-bottom: 20px;">게시글 수정</h3>
             <div id="editPostForm">
+                <div class="form-group">
+                    <label>시공자</label>
+                    <input type="text" id="editWorker" />
+                </div>
                 <div class="form-group">
                     <label>시공 내용</label>
                     <textarea id="editContent" rows="8"></textarea>
