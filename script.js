@@ -238,14 +238,88 @@ function compressImage(file, maxWidth = 800, quality = 0.7) {
     });
 }
 
-// 비디오 파일 처리 함수
-function processVideo(file) {
+// 비디오 파일 압축 함수
+function compressVideo(file, maxWidth = 640, fps = 24, quality = 0.6) {
     return new Promise((resolve, reject) => {
+        console.log('비디오 압축 시작:', file.name, (file.size / 1024 / 1024).toFixed(2), 'MB');
+        
+        const video = document.createElement('video');
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        video.preload = 'metadata';
+        video.muted = true;
+        
         const reader = new FileReader();
         
         reader.onload = function(e) {
-            console.log('비디오 파일 크기:', (e.target.result.length / 1024 / 1024).toFixed(2), 'MB');
-            resolve(e.target.result);
+            video.src = e.target.result;
+            
+            video.onloadedmetadata = function() {
+                const duration = video.duration;
+                let width = video.videoWidth;
+                let height = video.videoHeight;
+                
+                // 최대 너비 제한
+                if (width > maxWidth) {
+                    height = Math.round((height * maxWidth) / width);
+                    width = maxWidth;
+                }
+                
+                canvas.width = width;
+                canvas.height = height;
+                
+                console.log('비디오 정보:', {
+                    원본크기: `${video.videoWidth}x${video.videoHeight}`,
+                    압축크기: `${width}x${height}`,
+                    길이: duration.toFixed(2) + '초',
+                    FPS: fps
+                });
+                
+                const frames = [];
+                const frameInterval = 1 / fps;
+                let currentTime = 0;
+                
+                const captureFrame = () => {
+                    if (currentTime >= duration) {
+                        // 모든 프레임 캡처 완료
+                        const compressedVideo = {
+                            type: 'compressed-video',
+                            frames: frames,
+                            width: width,
+                            height: height,
+                            fps: fps,
+                            duration: duration
+                        };
+                        
+                        const compressedDataUrl = 'data:application/json;base64,' + btoa(JSON.stringify(compressedVideo));
+                        const originalSize = (e.target.result.length / 1024 / 1024).toFixed(2);
+                        const compressedSize = (compressedDataUrl.length / 1024 / 1024).toFixed(2);
+                        
+                        console.log('비디오 압축 완료!');
+                        console.log('원본 크기:', originalSize, 'MB');
+                        console.log('압축 후 크기:', compressedSize, 'MB');
+                        console.log('압축률:', ((1 - compressedDataUrl.length / e.target.result.length) * 100).toFixed(1) + '%');
+                        
+                        resolve(compressedDataUrl);
+                        return;
+                    }
+                    
+                    video.currentTime = currentTime;
+                };
+                
+                video.onseeked = function() {
+                    ctx.drawImage(video, 0, 0, width, height);
+                    const frameData = canvas.toDataURL('image/jpeg', quality);
+                    frames.push(frameData);
+                    
+                    currentTime += frameInterval;
+                    captureFrame();
+                };
+                
+                video.onerror = reject;
+                captureFrame();
+            };
         };
         
         reader.onerror = reject;
@@ -260,7 +334,7 @@ function isVideoFile(file) {
 
 // 전역 함수 등록
 window.compressImage = compressImage;
-window.processVideo = processVideo;
+window.compressVideo = compressVideo;
 window.isVideoFile = isVideoFile;
 
 // 게시글 추가
@@ -301,7 +375,7 @@ function addPost() {
         
         for (let i = 0; i < files.length; i++) {
             if (isVideoFile(files[i])) {
-                promises.push(processVideo(files[i]));
+                promises.push(compressVideo(files[i]));
             } else {
                 promises.push(compressImage(files[i]));
             }
@@ -363,7 +437,7 @@ function addUserPost() {
         
         for (let i = 0; i < files.length; i++) {
             if (isVideoFile(files[i])) {
-                promises.push(processVideo(files[i]));
+                promises.push(compressVideo(files[i]));
             } else {
                 promises.push(compressImage(files[i]));
             }
@@ -548,13 +622,16 @@ function renderPosts(userType) {
             ${post.images.length > 0 ? `
                 <div class="post-images">
                     ${post.images.map((media, index) => {
-                        const isVideo = media.startsWith('data:video/');
+                        const isVideo = media.startsWith('data:video/') || media.startsWith('data:application/json;base64,');
                         if (isVideo) {
                             return `
-                                <video src="${media}" class="post-image" controls 
-                                       onclick="event.stopPropagation(); showImageModalById(${post.id}, ${index})">
-                                    브라우저가 비디오를 지원하지 않습니다.
-                                </video>
+                                <div class="post-image video-container" onclick="showImageModalById(${post.id}, ${index})" 
+                                     data-video-data="${media.replace(/"/g, '&quot;')}">
+                                    <div class="video-placeholder">
+                                        <div class="play-icon">▶</div>
+                                        <small>클릭하여 재생</small>
+                                    </div>
+                                </div>
                             `;
                         } else {
                             return `
@@ -646,13 +723,16 @@ function searchPosts(userType) {
             ${post.images.length > 0 ? `
                 <div class="post-images">
                     ${post.images.map((media, index) => {
-                        const isVideo = media.startsWith('data:video/');
+                        const isVideo = media.startsWith('data:video/') || media.startsWith('data:application/json;base64,');
                         if (isVideo) {
                             return `
-                                <video src="${media}" class="post-image" controls 
-                                       onclick="event.stopPropagation(); showImageModalById(${post.id}, ${index})">
-                                    브라우저가 비디오를 지원하지 않습니다.
-                                </video>
+                                <div class="post-image video-container" onclick="showImageModalById(${post.id}, ${index})" 
+                                     data-video-data="${media.replace(/"/g, '&quot;')}">
+                                    <div class="video-placeholder">
+                                        <div class="play-icon">▶</div>
+                                        <small>클릭하여 재생</small>
+                                    </div>
+                                </div>
                             `;
                         } else {
                             return `
@@ -682,26 +762,146 @@ function showImageModalById(postId, imageIndex) {
 // 전역 함수 등록
 window.showImageModalById = showImageModalById;
 
+// 압축된 비디오 재생 함수
+function playCompressedVideo(videoData) {
+    return new Promise((resolve, reject) => {
+        try {
+            // JSON 데이터 파싱
+            const base64Data = videoData.split(',')[1];
+            const jsonStr = atob(base64Data);
+            const videoInfo = JSON.parse(jsonStr);
+            
+            const canvas = document.createElement('canvas');
+            canvas.width = videoInfo.width;
+            canvas.height = videoInfo.height;
+            canvas.style.width = '100%';
+            canvas.style.borderRadius = '10px';
+            canvas.style.cursor = 'pointer';
+            
+            const ctx = canvas.getContext('2d');
+            let currentFrame = 0;
+            let isPlaying = false;
+            let animationId = null;
+            
+            const frames = videoInfo.frames.map(frameData => {
+                const img = new Image();
+                img.src = frameData;
+                return img;
+            });
+            
+            // 첫 프레임 로드
+            frames[0].onload = function() {
+                ctx.drawImage(frames[0], 0, 0, videoInfo.width, videoInfo.height);
+                
+                // 재생 버튼 그리기
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+                ctx.beginPath();
+                ctx.arc(videoInfo.width / 2, videoInfo.height / 2, 40, 0, Math.PI * 2);
+                ctx.fill();
+                
+                ctx.fillStyle = 'white';
+                ctx.beginPath();
+                ctx.moveTo(videoInfo.width / 2 - 15, videoInfo.height / 2 - 20);
+                ctx.lineTo(videoInfo.width / 2 - 15, videoInfo.height / 2 + 20);
+                ctx.lineTo(videoInfo.width / 2 + 20, videoInfo.height / 2);
+                ctx.closePath();
+                ctx.fill();
+            };
+            
+            const playVideo = () => {
+                if (!isPlaying) return;
+                
+                if (currentFrame < frames.length) {
+                    if (frames[currentFrame].complete) {
+                        ctx.drawImage(frames[currentFrame], 0, 0, videoInfo.width, videoInfo.height);
+                    }
+                    currentFrame++;
+                    
+                    const frameDuration = 1000 / videoInfo.fps;
+                    animationId = setTimeout(() => {
+                        playVideo();
+                    }, frameDuration);
+                } else {
+                    // 재생 완료
+                    isPlaying = false;
+                    currentFrame = 0;
+                    
+                    // 첫 프레임으로 돌아가기
+                    ctx.drawImage(frames[0], 0, 0, videoInfo.width, videoInfo.height);
+                    
+                    // 재생 버튼 다시 그리기
+                    ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+                    ctx.beginPath();
+                    ctx.arc(videoInfo.width / 2, videoInfo.height / 2, 40, 0, Math.PI * 2);
+                    ctx.fill();
+                    
+                    ctx.fillStyle = 'white';
+                    ctx.beginPath();
+                    ctx.moveTo(videoInfo.width / 2 - 15, videoInfo.height / 2 - 20);
+                    ctx.lineTo(videoInfo.width / 2 - 15, videoInfo.height / 2 + 20);
+                    ctx.lineTo(videoInfo.width / 2 + 20, videoInfo.height / 2);
+                    ctx.closePath();
+                    ctx.fill();
+                }
+            };
+            
+            canvas.onclick = function() {
+                if (!isPlaying) {
+                    isPlaying = true;
+                    currentFrame = 0;
+                    playVideo();
+                } else {
+                    isPlaying = false;
+                    if (animationId) clearTimeout(animationId);
+                }
+            };
+            
+            resolve(canvas);
+        } catch (error) {
+            reject(error);
+        }
+    });
+}
+
+// 전역 함수 등록
+window.playCompressedVideo = playCompressedVideo;
+
 // 이미지/비디오 모달 표시
 function showImageModal(mediaSrc) {
     const modal = document.getElementById('postModal');
     const modalContent = document.getElementById('modalPostContent');
     
-    const isVideo = mediaSrc.startsWith('data:video/');
+    const isCompressedVideo = mediaSrc.startsWith('data:application/json;base64,');
+    const isOriginalVideo = mediaSrc.startsWith('data:video/');
     
-    if (isVideo) {
+    if (isCompressedVideo) {
+        // 압축된 비디오 재생
+        playCompressedVideo(mediaSrc).then(canvas => {
+            modalContent.innerHTML = '';
+            modalContent.appendChild(canvas);
+            modal.style.display = 'block';
+        }).catch(error => {
+            console.error('비디오 재생 실패:', error);
+            modalContent.innerHTML = `
+                <div style="padding: 20px; text-align: center;">
+                    <p>❌ 비디오를 재생할 수 없습니다.</p>
+                </div>
+            `;
+            modal.style.display = 'block';
+        });
+    } else if (isOriginalVideo) {
         modalContent.innerHTML = `
             <video src="${mediaSrc}" style="width: 100%; border-radius: 10px;" controls autoplay>
                 브라우저가 비디오를 지원하지 않습니다.
             </video>
         `;
+        modal.style.display = 'block';
     } else {
         modalContent.innerHTML = `
             <img src="${mediaSrc}" style="width: 100%; border-radius: 10px;">
         `;
+        modal.style.display = 'block';
     }
-    
-    modal.style.display = 'block';
 }
 
 // 모달 닫기

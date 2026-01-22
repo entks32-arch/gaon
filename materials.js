@@ -137,7 +137,7 @@ function addMaterial() {
         
         for (let i = 0; i < files.length; i++) {
             if (window.isVideoFile(files[i])) {
-                promises.push(window.processVideo(files[i]));
+                promises.push(window.compressVideo(files[i]));
             } else {
                 promises.push(window.compressImage(files[i]));
             }
@@ -191,7 +191,7 @@ function addUserMaterial() {
         
         for (let i = 0; i < files.length; i++) {
             if (window.isVideoFile(files[i])) {
-                promises.push(window.processVideo(files[i]));
+                promises.push(window.compressVideo(files[i]));
             } else {
                 promises.push(window.compressImage(files[i]));
             }
@@ -344,13 +344,16 @@ function renderMaterials(userType) {
             ${material.images.length > 0 ? `
                 <div class="post-images">
                     ${material.images.map((media, index) => {
-                        const isVideo = media.startsWith('data:video/');
+                        const isVideo = media.startsWith('data:video/') || media.startsWith('data:application/json;base64,');
                         if (isVideo) {
                             return `
-                                <video src="${media}" class="post-image" controls 
-                                       onclick="event.stopPropagation(); showMaterialImageById(${material.id}, ${index})">
-                                    브라우저가 비디오를 지원하지 않습니다.
-                                </video>
+                                <div class="post-image video-container" onclick="showMaterialImageById(${material.id}, ${index})" 
+                                     data-video-data="${media.replace(/"/g, '&quot;')}">
+                                    <div class="video-placeholder">
+                                        <div class="play-icon">▶</div>
+                                        <small>클릭하여 재생</small>
+                                    </div>
+                                </div>
                             `;
                         } else {
                             return `
@@ -438,13 +441,16 @@ function searchMaterials(userType) {
             ${material.images.length > 0 ? `
                 <div class="post-images">
                     ${material.images.map((media, index) => {
-                        const isVideo = media.startsWith('data:video/');
+                        const isVideo = media.startsWith('data:video/') || media.startsWith('data:application/json;base64,');
                         if (isVideo) {
                             return `
-                                <video src="${media}" class="post-image" controls 
-                                       onclick="event.stopPropagation(); showMaterialImageById(${material.id}, ${index})">
-                                    브라우저가 비디오를 지원하지 않습니다.
-                                </video>
+                                <div class="post-image video-container" onclick="showMaterialImageById(${material.id}, ${index})" 
+                                     data-video-data="${media.replace(/"/g, '&quot;')}">
+                                    <div class="video-placeholder">
+                                        <div class="play-icon">▶</div>
+                                        <small>클릭하여 재생</small>
+                                    </div>
+                                </div>
                             `;
                         } else {
                             return `
