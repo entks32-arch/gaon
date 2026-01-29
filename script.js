@@ -172,6 +172,8 @@ function showScreen(screenId) {
 // 게시글 등록 폼 표시
 function showAddPostForm() {
     document.getElementById('addPostForm').style.display = 'block';
+    // 이미지 미리보기 초기화
+    imagePreviewManager.init('adminForm', 'adminImage', 'adminImagePreview');
 }
 
 // 게시글 등록 폼 숨기기
@@ -183,6 +185,8 @@ function hideAddPostForm() {
 // 사용자 게시글 등록 폼 표시
 function showUserAddPostForm() {
     document.getElementById('userAddPostForm').style.display = 'block';
+    // 이미지 미리보기 초기화
+    imagePreviewManager.init('userForm', 'userImage', 'userImagePreview');
 }
 
 // 사용자 게시글 등록 폼 숨기기
@@ -1711,13 +1715,24 @@ window.saveEditedPost = saveEditedPost;
 // 이미지 미리보기 관리 객체
 const imagePreviewManager = {
     previews: new Map(), // formId -> { files: [], selectedIndex: 0, processedData: [] }
+    initialized: new Set(), // 초기화된 input ID 추적
     
     // 파일 입력 이벤트 핸들러 등록
     init(formId, inputId, containerId) {
         const input = document.getElementById(inputId);
         const container = document.getElementById(containerId);
         
-        if (!input || !container) return;
+        if (!input || !container) {
+            console.warn(`imagePreviewManager: 요소를 찾을 수 없습니다 - inputId: ${inputId}, containerId: ${containerId}`);
+            return;
+        }
+        
+        // 이미 초기화된 경우 스킵
+        if (this.initialized.has(inputId)) {
+            return;
+        }
+        
+        console.log(`imagePreviewManager: 초기화 - ${inputId}`);
         
         // 기존 데이터 초기화
         this.previews.set(formId, {
@@ -1726,9 +1741,13 @@ const imagePreviewManager = {
             processedData: []
         });
         
+        // 이벤트 리스너 등록
         input.addEventListener('change', (e) => {
+            console.log(`파일 선택됨: ${e.target.files.length}개`);
             this.handleFileChange(formId, e.target.files, containerId);
         });
+        
+        this.initialized.add(inputId);
     },
     
     // 파일 변경 처리
@@ -1739,27 +1758,35 @@ const imagePreviewManager = {
         data.processedData = [];
         this.previews.set(formId, data);
         
+        console.log(`미리보기 렌더링: ${data.files.length}개 파일`);
         this.renderPreviews(formId, containerId);
     },
     
     // 미리보기 렌더링
     renderPreviews(formId, containerId) {
         const container = document.getElementById(containerId);
-        if (!container) return;
+        if (!container) {
+            console.error(`컨테이너를 찾을 수 없습니다: ${containerId}`);
+            return;
+        }
         
         const data = this.previews.get(formId);
         if (!data || data.files.length === 0) {
             container.innerHTML = '';
+            container.style.display = 'none';
             return;
         }
         
-        container.innerHTML = data.files.map((file, index) => {
+        container.style.display = 'grid';
+        
+        const previewItems = data.files.map((file, index) => {
             const isVideo = file.type.startsWith('video/');
             const isSelected = index === data.selectedIndex;
             const objectUrl = URL.createObjectURL(file);
             
             return `
                 <div class="image-preview-item ${isSelected ? 'selected' : ''}" 
+                     data-index="${index}"
                      onclick="imagePreviewManager.selectImage('${formId}', ${index}, '${containerId}')">
                     ${isSelected ? '<div class="image-preview-badge">대표</div>' : ''}
                     <button class="image-preview-remove" 
@@ -1771,10 +1798,14 @@ const imagePreviewManager = {
                     }
                 </div>
             `;
-        }).join('') + 
+        }).join('');
+        
+        container.innerHTML = previewItems + 
         `<div class="image-preview-hint">
             💡 클릭하여 대표사진을 선택하세요
         </div>`;
+        
+        console.log(`미리보기 렌더링 완료: ${data.files.length}개`);
     },
     
     // 이미지 선택

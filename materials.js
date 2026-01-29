@@ -67,6 +67,8 @@ window.switchTab = switchTab;
 // 자재 등록 폼 표시/숨기기
 function showAddMaterialForm() {
     document.getElementById('addMaterialForm').style.display = 'block';
+    // 이미지 미리보기 초기화
+    imagePreviewManager.init('adminMaterialForm', 'adminMaterialImage', 'adminMaterialImagePreview');
 }
 
 function hideAddMaterialForm() {
@@ -76,6 +78,8 @@ function hideAddMaterialForm() {
 
 function showUserAddMaterialForm() {
     document.getElementById('userAddMaterialForm').style.display = 'block';
+    // 이미지 미리보기 초기화
+    imagePreviewManager.init('userMaterialForm', 'userMaterialImage', 'userMaterialImagePreview');
 }
 
 function hideUserAddMaterialForm() {
@@ -94,6 +98,13 @@ function clearMaterialForm() {
 비 고 : `;
     document.getElementById('adminMaterialPrice').value = '';
     document.getElementById('adminMaterialImage').value = '';
+    
+    // 이미지 미리보기 초기화
+    const previewContainer = document.getElementById('adminMaterialImagePreview');
+    if (previewContainer) {
+        previewContainer.innerHTML = '';
+    }
+    imagePreviewManager.clear('adminMaterialForm');
 }
 
 function clearUserMaterialForm() {
@@ -107,6 +118,13 @@ function clearUserMaterialForm() {
 비 고 : `;
     document.getElementById('userMaterialPrice').value = '';
     document.getElementById('userMaterialImage').value = '';
+    
+    // 이미지 미리보기 초기화
+    const previewContainer = document.getElementById('userMaterialImagePreview');
+    if (previewContainer) {
+        previewContainer.innerHTML = '';
+    }
+    imagePreviewManager.clear('userMaterialForm');
 }
 
 // 전역 함수 등록
@@ -135,12 +153,14 @@ function addMaterial() {
     }
     
     const media = [];
-    const files = imageInput.files;
     
-    if (files.length > 0) {
-        console.log('파일 처리 시작:', files.length, '개');
+    // 미리보기 매니저에서 정렬된 파일 가져오기 (대표사진이 첫 번째)
+    const sortedFiles = window.imagePreviewManager.getSortedFiles('adminMaterialForm');
+    
+    if (sortedFiles.length > 0) {
+        console.log('파일 처리 시작:', sortedFiles.length, '개');
         
-        if (files.length > 8) {
+        if (sortedFiles.length > 8) {
             alert('⚠️ 파일은 최대 8개까지 업로드할 수 있습니다.');
             return;
         }
@@ -149,19 +169,19 @@ function addMaterial() {
         window.uploadProgress.show();
         
         // 각 파일에 대한 프로그레스 항목 추가
-        for (let i = 0; i < files.length; i++) {
+        for (let i = 0; i < sortedFiles.length; i++) {
             const fileId = 'file-' + Date.now() + '-' + i;
-            const isVideo = window.isVideoFile(files[i]);
-            window.uploadProgress.addFile(fileId, files[i].name, isVideo);
+            const isVideo = window.isVideoFile(sortedFiles[i]);
+            window.uploadProgress.addFile(fileId, sortedFiles[i].name, isVideo);
         }
         
         const promises = [];
         
-        for (let i = 0; i < files.length; i++) {
-            if (window.isVideoFile(files[i])) {
-                promises.push(window.compressVideo(files[i]));
+        for (let i = 0; i < sortedFiles.length; i++) {
+            if (window.isVideoFile(sortedFiles[i])) {
+                promises.push(window.compressVideo(sortedFiles[i]));
             } else {
-                promises.push(window.compressImage(files[i]));
+                promises.push(window.compressImage(sortedFiles[i]));
             }
         }
         
@@ -206,12 +226,14 @@ function addUserMaterial() {
     }
     
     const media = [];
-    const files = imageInput.files;
     
-    if (files.length > 0) {
-        console.log('파일 처리 시작:', files.length, '개');
+    // 미리보기 매니저에서 정렬된 파일 가져오기 (대표사진이 첫 번째)
+    const sortedFiles = window.imagePreviewManager.getSortedFiles('userMaterialForm');
+    
+    if (sortedFiles.length > 0) {
+        console.log('파일 처리 시작:', sortedFiles.length, '개');
         
-        if (files.length > 8) {
+        if (sortedFiles.length > 8) {
             alert('⚠️ 파일은 최대 8개까지 업로드할 수 있습니다.');
             return;
         }
@@ -220,19 +242,19 @@ function addUserMaterial() {
         window.uploadProgress.show();
         
         // 각 파일에 대한 프로그레스 항목 추가
-        for (let i = 0; i < files.length; i++) {
+        for (let i = 0; i < sortedFiles.length; i++) {
             const fileId = 'file-' + Date.now() + '-' + i;
-            const isVideo = window.isVideoFile(files[i]);
-            window.uploadProgress.addFile(fileId, files[i].name, isVideo);
+            const isVideo = window.isVideoFile(sortedFiles[i]);
+            window.uploadProgress.addFile(fileId, sortedFiles[i].name, isVideo);
         }
         
         const promises = [];
         
-        for (let i = 0; i < files.length; i++) {
-            if (window.isVideoFile(files[i])) {
-                promises.push(window.compressVideo(files[i]));
+        for (let i = 0; i < sortedFiles.length; i++) {
+            if (window.isVideoFile(sortedFiles[i])) {
+                promises.push(window.compressVideo(sortedFiles[i]));
             } else {
-                promises.push(window.compressImage(files[i]));
+                promises.push(window.compressImage(sortedFiles[i]));
             }
         }
         
