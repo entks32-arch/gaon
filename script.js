@@ -35,16 +35,34 @@ async function loadData() {
 // 전역 함수 등록
 window.loadData = loadData;
 
+// 간단한 비밀번호 해싱 함수 (SHA-256)
+async function hashPassword(password) {
+    const encoder = new TextEncoder();
+    const data = encoder.encode(password);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    return hashHex;
+}
+
+// 전역 함수 등록
+window.hashPassword = hashPassword;
+
 // 데이터 저장 (Firebase Firestore 저장)
-async function savePost(content, estimate, survey, images) {
-    console.log('게시글 저장 시작:', { content, estimate, survey, imagesCount: images.length });
+async function savePost(worker, content, estimate, survey, images, password) {
+    console.log('게시글 저장 시작:', { worker, content, estimate, survey, imagesCount: images.length });
+    
+    // 비밀번호 해싱
+    const hashedPassword = password ? await hashPassword(password) : null;
     
     const post = {
         id: Date.now(),
+        worker: worker,
         content: content,
         estimate: estimate,
         survey: survey,
         images: images,
+        password: hashedPassword,
         date: new Date().toLocaleString('ko-KR')
     };
     
@@ -154,6 +172,8 @@ function showScreen(screenId) {
 // 게시글 등록 폼 표시
 function showAddPostForm() {
     document.getElementById('addPostForm').style.display = 'block';
+    // 이미지 미리보기 초기화
+    imagePreviewManager.init('adminForm', 'adminImage', 'adminImagePreview');
 }
 
 // 게시글 등록 폼 숨기기
@@ -165,6 +185,8 @@ function hideAddPostForm() {
 // 사용자 게시글 등록 폼 표시
 function showUserAddPostForm() {
     document.getElementById('userAddPostForm').style.display = 'block';
+    // 이미지 미리보기 초기화
+    imagePreviewManager.init('userForm', 'userImage', 'userImagePreview');
 }
 
 // 사용자 게시글 등록 폼 숨기기
@@ -175,18 +197,40 @@ function hideUserAddPostForm() {
 
 // 폼 초기화
 function clearForm() {
-    document.getElementById('adminContent').value = '';
+    document.getElementById('adminWorker').value = '';
+    document.getElementById('adminContent').value = `작업내용 : 
+
+현장변수 : `;
     document.getElementById('adminEstimate').value = '';
     document.getElementById('adminSurvey').value = '했음';
+    document.getElementById('adminPassword').value = '';
     document.getElementById('adminImage').value = '';
+    
+    // 이미지 미리보기 초기화
+    const previewContainer = document.getElementById('adminImagePreview');
+    if (previewContainer) {
+        previewContainer.innerHTML = '';
+    }
+    imagePreviewManager.clear('adminForm');
 }
 
 // 사용자 폼 초기화
 function clearUserForm() {
-    document.getElementById('userContent').value = '';
+    document.getElementById('userWorker').value = '';
+    document.getElementById('userContent').value = `작업내용 : 
+
+현장변수 : `;
     document.getElementById('userEstimate').value = '';
     document.getElementById('userSurvey').value = '했음';
+    document.getElementById('userPassword').value = '';
     document.getElementById('userImage').value = '';
+    
+    // 이미지 미리보기 초기화
+    const previewContainer = document.getElementById('userImagePreview');
+    if (previewContainer) {
+        previewContainer.innerHTML = '';
+    }
+    imagePreviewManager.clear('userForm');
 }
 
 // 전역 함수 등록
@@ -199,12 +243,18 @@ window.hideUserAddPostForm = hideUserAddPostForm;
 // 이미지 압축 함수
 function compressImage(file, maxWidth = 800, quality = 0.7) {
     return new Promise((resolve, reject) => {
+        const fileId = 'file-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+        
         const reader = new FileReader();
         
         reader.onload = function(e) {
+            uploadProgress.updateProgress(fileId, 30, '이미지 로딩 중...');
+            
             const img = new Image();
             
             img.onload = function() {
+                uploadProgress.updateProgress(fileId, 50, '이미지 압축 중...');
+                
                 const canvas = document.createElement('canvas');
                 let width = img.width;
                 let height = img.height;
@@ -221,16 +271,224 @@ function compressImage(file, maxWidth = 800, quality = 0.7) {
                 const ctx = canvas.getContext('2d');
                 ctx.drawImage(img, 0, 0, width, height);
                 
+                uploadProgress.updateProgress(fileId, 80, '최종 처리 중...');
+                
                 // 압축된 이미지를 Base64로 변환
                 const compressedDataUrl = canvas.toDataURL('image/jpeg', quality);
                 console.log('원본 크기:', (e.target.result.length / 1024).toFixed(2), 'KB');
                 console.log('압축 후 크기:', (compressedDataUrl.length / 1024).toFixed(2), 'KB');
                 
+                uploadProgress.setComplete(fileId);
+                
                 resolve(compressedDataUrl);
             };
             
-            img.onerror = reject;
+            img.onerror = () => {
+                uploadProgress.setError(fileId, '이미지 로딩 실패');
+                reject(new Error('이미지 로딩 실패'));
+            };
             img.src = e.target.result;
+        };
+        
+        reader.onerror = () => {
+            uploadProgress.setError(fileId, '파일 읽기 실패');
+            reject(new Error('파일 읽기 실패'));
+        };
+        reader.readAsDataURL(file);
+    });
+}
+
+// 업로드 프로그레스 관리
+const uploadProgress = {
+    modal: null,
+    container: null,
+    items: new Map(),
+    
+    show() {
+        this.modal = document.getElementById('uploadProgressModal');
+        this.container = document.getElementById('uploadProgressContainer');
+        this.modal.style.display = 'block';
+        this.items.clear();
+        this.container.innerHTML = '';
+    },
+    
+    hide() {
+        if (this.modal) {
+            this.modal.style.display = 'none';
+        }
+    },
+    
+    addFile(fileId, fileName, isVideo) {
+        const icon = isVideo ? '🎬' : '🖼️';
+        const itemHtml = `
+            <div class="upload-progress-item" id="progress-${fileId}">
+                <h4>
+                    <span class="file-icon">${icon}</span>
+                    <span class="file-name">${fileName}</span>
+                </h4>
+                <div class="progress-bar-container">
+                    <div class="progress-bar-fill" id="progress-bar-${fileId}" style="width: 0%">
+                        <span>0%</span>
+                    </div>
+                </div>
+                <div class="progress-status" id="progress-status-${fileId}">준비 중...</div>
+            </div>
+        `;
+        this.container.insertAdjacentHTML('beforeend', itemHtml);
+        this.items.set(fileId, { fileName, isVideo });
+    },
+    
+    updateProgress(fileId, percent, status) {
+        const progressBar = document.getElementById(`progress-bar-${fileId}`);
+        const progressStatus = document.getElementById(`progress-status-${fileId}`);
+        
+        if (progressBar) {
+            progressBar.style.width = percent + '%';
+            progressBar.querySelector('span').textContent = Math.round(percent) + '%';
+            
+            if (percent >= 100) {
+                progressBar.classList.add('completed');
+            }
+        }
+        
+        if (progressStatus && status) {
+            progressStatus.textContent = status;
+            if (percent >= 100) {
+                progressStatus.classList.add('completed');
+            }
+        }
+    },
+    
+    setComplete(fileId) {
+        this.updateProgress(fileId, 100, '✅ 완료');
+    },
+    
+    setError(fileId, errorMsg) {
+        const progressStatus = document.getElementById(`progress-status-${fileId}`);
+        if (progressStatus) {
+            progressStatus.textContent = '❌ ' + errorMsg;
+            progressStatus.style.color = '#dc3545';
+        }
+    }
+};
+
+// 전역 함수 등록
+window.uploadProgress = uploadProgress;
+
+// 비디오 파일 압축 함수
+function compressVideo(file, maxWidth = 480, fps = 12, quality = 0.4, maxDuration = 30) {
+    return new Promise((resolve, reject) => {
+        const fileId = 'file-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+        
+        console.log('비디오 압축 시작:', file.name, (file.size / 1024 / 1024).toFixed(2), 'MB');
+        
+        const video = document.createElement('video');
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        video.preload = 'metadata';
+        video.muted = true;
+        
+        const reader = new FileReader();
+        
+        reader.onload = function(e) {
+            video.src = e.target.result;
+            
+            video.onloadedmetadata = function() {
+                let duration = video.duration;
+                
+                // 영상 길이 제한
+                if (duration > maxDuration) {
+                    console.warn(`영상이 너무 깁니다 (${duration.toFixed(1)}초). ${maxDuration}초로 제한합니다.`);
+                    duration = maxDuration;
+                }
+                
+                let width = video.videoWidth;
+                let height = video.videoHeight;
+                
+                // 최대 너비 제한
+                if (width > maxWidth) {
+                    height = Math.round((height * maxWidth) / width);
+                    width = maxWidth;
+                }
+                
+                canvas.width = width;
+                canvas.height = height;
+                
+                console.log('비디오 정보:', {
+                    원본크기: `${video.videoWidth}x${video.videoHeight}`,
+                    압축크기: `${width}x${height}`,
+                    원본길이: video.duration.toFixed(2) + '초',
+                    압축길이: duration.toFixed(2) + '초',
+                    FPS: fps,
+                    품질: quality
+                });
+                
+                const frames = [];
+                const frameInterval = 1 / fps;
+                const totalFrames = Math.ceil(duration * fps);
+                let currentTime = 0;
+                let frameCount = 0;
+                
+                uploadProgress.updateProgress(fileId, 0, `프레임 추출 중... (0/${totalFrames})`);
+                
+                const captureFrame = () => {
+                    if (currentTime >= duration) {
+                        // 모든 프레임 캡처 완료
+                        uploadProgress.updateProgress(fileId, 90, '최종 처리 중...');
+                        
+                        const compressedVideo = {
+                            type: 'compressed-video',
+                            frames: frames,
+                            width: width,
+                            height: height,
+                            fps: fps,
+                            duration: duration
+                        };
+                        
+                        const jsonStr = JSON.stringify(compressedVideo);
+                        const compressedDataUrl = 'data:application/json;base64,' + btoa(jsonStr);
+                        
+                        const originalSize = (e.target.result.length / 1024 / 1024).toFixed(2);
+                        const compressedSize = (compressedDataUrl.length / 1024 / 1024).toFixed(2);
+                        
+                        console.log('비디오 압축 완료!');
+                        console.log('원본 크기:', originalSize, 'MB');
+                        console.log('압축 후 크기:', compressedSize, 'MB');
+                        console.log('압축률:', ((1 - compressedDataUrl.length / e.target.result.length) * 100).toFixed(1) + '%');
+                        
+                        // Firestore 크기 제한 확인 (1MB = 1048576 bytes)
+                        if (compressedDataUrl.length > 900000) {
+                            uploadProgress.setError(fileId, '영상이 너무 큽니다. 더 짧은 영상을 사용하세요.');
+                            reject(new Error('압축 후에도 파일이 너무 큽니다. 영상을 더 짧게 자르거나 더 작은 해상도로 촬영해주세요.'));
+                            return;
+                        }
+                        
+                        uploadProgress.setComplete(fileId);
+                        
+                        resolve(compressedDataUrl);
+                        return;
+                    }
+                    
+                    video.currentTime = currentTime;
+                };
+                
+                video.onseeked = function() {
+                    ctx.drawImage(video, 0, 0, width, height);
+                    const frameData = canvas.toDataURL('image/jpeg', quality);
+                    frames.push(frameData);
+                    
+                    frameCount++;
+                    const progress = (frameCount / totalFrames) * 90; // 90%까지만 (나머지 10%는 최종 처리)
+                    uploadProgress.updateProgress(fileId, progress, `프레임 추출 중... (${frameCount}/${totalFrames})`);
+                    
+                    currentTime += frameInterval;
+                    captureFrame();
+                };
+                
+                video.onerror = reject;
+                captureFrame();
+            };
         };
         
         reader.onerror = reject;
@@ -238,19 +496,33 @@ function compressImage(file, maxWidth = 800, quality = 0.7) {
     });
 }
 
+// 파일 타입 확인 함수
+function isVideoFile(file) {
+    return file.type.startsWith('video/');
+}
+
 // 전역 함수 등록
 window.compressImage = compressImage;
+window.compressVideo = compressVideo;
+window.isVideoFile = isVideoFile;
 
 // 게시글 추가
 function addPost() {
     console.log('게시글 등록 시작');
     
+    const worker = document.getElementById('adminWorker').value.trim();
     const content = document.getElementById('adminContent').value.trim();
     const estimate = document.getElementById('adminEstimate').value.trim();
     const survey = document.getElementById('adminSurvey').value;
+    const password = document.getElementById('adminPassword').value.trim();
     const imageInput = document.getElementById('adminImage');
     
-    console.log('입력값:', { content, estimate, survey, filesCount: imageInput.files.length });
+    console.log('입력값:', { worker, content, estimate, survey, filesCount: imageInput.files.length });
+    
+    if (!worker) {
+        alert('❌ 시공자를 입력하세요.');
+        return;
+    }
     
     if (!content) {
         alert('❌ 시공 내용을 입력하세요.');
@@ -262,37 +534,65 @@ function addPost() {
         return;
     }
     
-    // 이미지 파일 읽기 및 압축
-    const images = [];
-    const files = imageInput.files;
+    if (!password || password.length !== 4) {
+        alert('❌ 4자리 수정 비밀번호를 입력하세요.');
+        return;
+    }
     
-    if (files.length > 0) {
-        console.log('이미지 파일 처리 시작:', files.length, '개');
+    // 이미지/비디오 파일 읽기 및 처리
+    const media = [];
+    
+    // 미리보기 매니저에서 정렬된 파일 가져오기 (대표사진이 첫 번째)
+    const sortedFiles = imagePreviewManager.getSortedFiles('adminForm');
+    
+    if (sortedFiles.length > 0) {
+        console.log('파일 처리 시작:', sortedFiles.length, '개');
         
-        // 이미지 개수 제한 (최대 8개)
-        if (files.length > 8) {
-            alert('⚠️ 이미지는 최대 8개까지 업로드할 수 있습니다.');
+        // 파일 개수 제한 (최대 8개)
+        if (sortedFiles.length > 8) {
+            alert('⚠️ 파일은 최대 8개까지 업로드할 수 있습니다.');
             return;
+        }
+        
+        // 프로그레스 모달 표시
+        uploadProgress.show();
+        
+        // 각 파일에 대한 프로그레스 항목 추가
+        for (let i = 0; i < sortedFiles.length; i++) {
+            const fileId = 'file-' + Date.now() + '-' + i;
+            const isVideo = isVideoFile(sortedFiles[i]);
+            uploadProgress.addFile(fileId, sortedFiles[i].name, isVideo);
         }
         
         const promises = [];
         
-        for (let i = 0; i < files.length; i++) {
-            promises.push(compressImage(files[i]));
+        for (let i = 0; i < sortedFiles.length; i++) {
+            if (isVideoFile(sortedFiles[i])) {
+                promises.push(compressVideo(sortedFiles[i]));
+            } else {
+                promises.push(compressImage(sortedFiles[i]));
+            }
         }
         
         Promise.all(promises)
-            .then(async compressedImages => {
-                console.log('모든 이미지 압축 완료, 저장 시작');
-                await savePost(content, estimate, survey, compressedImages);
+            .then(async processedMedia => {
+                console.log('모든 파일 처리 완료, 저장 시작');
+                
+                // 1초 후 모달 닫기 (사용자가 완료 상태를 볼 수 있도록)
+                setTimeout(() => {
+                    uploadProgress.hide();
+                }, 1000);
+                
+                await savePost(worker, content, estimate, survey, processedMedia, password);
             })
             .catch(error => {
-                console.error('이미지 압축 실패:', error);
-                alert('❌ 이미지 처리 중 오류가 발생했습니다.');
+                console.error('파일 처리 실패:', error);
+                uploadProgress.hide();
+                alert('❌ 파일 처리 중 오류가 발생했습니다.');
             });
     } else {
-        console.log('이미지 없이 저장');
-        savePost(content, estimate, survey, images);
+        console.log('파일 없이 저장');
+        savePost(worker, content, estimate, survey, media, password);
     }
 }
 
@@ -303,12 +603,19 @@ window.addPost = addPost;
 function addUserPost() {
     console.log('사용자 게시글 등록 시작');
     
+    const worker = document.getElementById('userWorker').value.trim();
     const content = document.getElementById('userContent').value.trim();
     const estimate = document.getElementById('userEstimate').value.trim();
     const survey = document.getElementById('userSurvey').value;
+    const password = document.getElementById('userPassword').value.trim();
     const imageInput = document.getElementById('userImage');
     
-    console.log('입력값:', { content, estimate, survey, filesCount: imageInput.files.length });
+    console.log('입력값:', { worker, content, estimate, survey, filesCount: imageInput.files.length });
+    
+    if (!worker) {
+        alert('❌ 시공자를 입력하세요.');
+        return;
+    }
     
     if (!content) {
         alert('❌ 시공 내용을 입력하세요.');
@@ -320,50 +627,83 @@ function addUserPost() {
         return;
     }
     
-    // 이미지 파일 읽기 및 압축
-    const images = [];
-    const files = imageInput.files;
+    if (!password || password.length !== 4) {
+        alert('❌ 4자리 수정 비밀번호를 입력하세요.');
+        return;
+    }
     
-    if (files.length > 0) {
-        console.log('이미지 파일 처리 시작:', files.length, '개');
+    // 이미지/비디오 파일 읽기 및 처리
+    const media = [];
+    
+    // 미리보기 매니저에서 정렬된 파일 가져오기 (대표사진이 첫 번째)
+    const sortedFiles = imagePreviewManager.getSortedFiles('userForm');
+    
+    if (sortedFiles.length > 0) {
+        console.log('파일 처리 시작:', sortedFiles.length, '개');
         
-        // 이미지 개수 제한 (최대 8개)
-        if (files.length > 8) {
-            alert('⚠️ 이미지는 최대 8개까지 업로드할 수 있습니다.');
+        // 파일 개수 제한 (최대 8개)
+        if (sortedFiles.length > 8) {
+            alert('⚠️ 파일은 최대 8개까지 업로드할 수 있습니다.');
             return;
+        }
+        
+        // 프로그레스 모달 표시
+        uploadProgress.show();
+        
+        // 각 파일에 대한 프로그레스 항목 추가
+        for (let i = 0; i < sortedFiles.length; i++) {
+            const fileId = 'file-' + Date.now() + '-' + i;
+            const isVideo = isVideoFile(sortedFiles[i]);
+            uploadProgress.addFile(fileId, sortedFiles[i].name, isVideo);
         }
         
         const promises = [];
         
-        for (let i = 0; i < files.length; i++) {
-            promises.push(compressImage(files[i]));
+        for (let i = 0; i < sortedFiles.length; i++) {
+            if (isVideoFile(sortedFiles[i])) {
+                promises.push(compressVideo(sortedFiles[i]));
+            } else {
+                promises.push(compressImage(sortedFiles[i]));
+            }
         }
         
         Promise.all(promises)
-            .then(async compressedImages => {
-                console.log('모든 이미지 압축 완료, 저장 시작');
-                await saveUserPost(content, estimate, survey, compressedImages);
+            .then(async processedMedia => {
+                console.log('모든 파일 처리 완료, 저장 시작');
+                
+                // 1초 후 모달 닫기
+                setTimeout(() => {
+                    uploadProgress.hide();
+                }, 1000);
+                
+                await saveUserPost(worker, content, estimate, survey, processedMedia, password);
             })
             .catch(error => {
-                console.error('이미지 압축 실패:', error);
-                alert('❌ 이미지 처리 중 오류가 발생했습니다.');
+                console.error('파일 처리 실패:', error);
+                uploadProgress.hide();
+                alert('❌ 파일 처리 중 오류가 발생했습니다.');
             });
     } else {
-        console.log('이미지 없이 저장');
-        saveUserPost(content, estimate, survey, images);
+        console.log('파일 없이 저장');
+        saveUserPost(worker, content, estimate, survey, media, password);
     }
 }
 
 // 사용자 게시글 저장
-async function saveUserPost(content, estimate, survey, images) {
-    console.log('사용자 게시글 저장 시작:', { content, estimate, survey, imagesCount: images.length });
+async function saveUserPost(worker, content, estimate, survey, images, password) {
+    console.log('사용자 게시글 저장 시작:', { worker, content, estimate, survey, imagesCount: images.length });
+    
+    // 비밀번호 해싱
+    const hashedPassword = password ? await hashPassword(password) : null;
     
     const post = {
         id: Date.now(),
+        worker: worker,
         content: content,
         estimate: estimate,
         survey: survey,
         images: images,
+        password: hashedPassword,
         date: new Date().toLocaleString('ko-KR')
     };
     
@@ -391,12 +731,46 @@ window.addUserPost = addUserPost;
 
 // 게시글 삭제
 async function deletePost(postId) {
+    const post = posts.find(p => p.id === postId);
+    
+    if (!post) {
+        alert('❌ 게시글을 찾을 수 없습니다.');
+        return;
+    }
+    
+    // 비밀번호가 있는 게시글이고 관리자가 아닌 경우 비밀번호 확인
+    if (post.password && currentUser !== 'admin') {
+        const inputPassword = prompt('삭제 비밀번호를 입력하세요 (4자리):');
+        if (!inputPassword) return;
+        
+        try {
+            const hashedInput = await hashPassword(inputPassword);
+            
+            if (hashedInput !== post.password) {
+                alert('❌ 비밀번호가 일치하지 않습니다.');
+                return;
+            }
+        } catch (error) {
+            console.error('비밀번호 확인 실패:', error);
+            alert('❌ 오류가 발생했습니다.');
+            return;
+        }
+    }
+    
+    // 비밀번호 확인 완료 또는 관리자인 경우 삭제 진행
     if (confirm('🗑️ 정말 이 게시글을 삭제하시겠습니까?')) {
         try {
             await window.postDB.deletePost(postId);
             await loadData();
-            renderPosts('admin');
-            await updateStorageInfo();
+            
+            // 현재 사용자 타입에 따라 렌더링
+            if (currentUser === 'admin') {
+                renderPosts('admin');
+                await updateStorageInfo();
+            } else {
+                renderPosts('user');
+            }
+            
             alert('✅ 게시글이 삭제되었습니다.');
         } catch (error) {
             console.error('게시글 삭제 실패:', error);
@@ -438,38 +812,43 @@ async function updateStorageInfo() {
         const estimate = await window.postDB.getStorageEstimate();
         
         if (estimate) {
-            const usedMB = parseFloat(estimate.usageInMB);
-            const quotaMB = parseFloat(estimate.quotaInMB);
-            const percent = parseFloat(estimate.percentUsed);
+            const usedMB = Number(estimate.usageInMB) || 0;
+            const quotaMB = Number(estimate.quotaInMB) || 1024;
+            const percent = Number(estimate.percentUsed) || 0;
             
             const isWarning = percent > 70;
             
             storageInfoDiv.innerHTML = `
                 <div>
-                    <strong>💾 저장 공간:</strong> ${usedMB} MB / ${quotaMB} MB 사용중 (게시글: ${posts.length}개)
+                    <strong>💾 저장 공간:</strong> ${usedMB.toFixed(2)} MB / ${quotaMB} MB 사용중 (게시글: ${posts.length}개)
                 </div>
                 <div class="storage-bar">
                     <div class="storage-bar-fill ${isWarning ? 'warning' : ''}" 
                          style="width: ${Math.min(percent, 100)}%"></div>
                 </div>
                 <div>
-                    <strong>${percent}%</strong> ${isWarning ? '⚠️ 공간 부족' : '✅ 여유 공간'}
+                    <strong>${percent.toFixed(2)}%</strong> ${isWarning ? '⚠️ 공간 부족' : '✅ 여유 공간'}
                 </div>
             `;
         } else {
             storageInfoDiv.innerHTML = `
                 <div>
-                    <strong>💾 저장 공간:</strong> IndexedDB 사용중 (게시글: ${posts.length}개)
+                    <strong>💾 저장 공간:</strong> Firestore 사용중 (게시글: ${posts.length}개)
                 </div>
-                <div>✅ 대용량 저장 가능</div>
+                <div>✅ 클라우드 저장소</div>
             `;
         }
     } catch (e) {
         console.error('저장 공간 정보 업데이트 실패:', e);
+        storageInfoDiv.innerHTML = `
+            <div>
+                <strong>💾 저장 공간:</strong> 계산 중... (게시글: ${posts.length}개)
+            </div>
+        `;
     }
 }
 
-// 게시글 렌더링
+// 게시글 렌더링 (앨범형 그리드)
 function renderPosts(userType) {
     const listId = userType === 'admin' ? 'adminPostList' : 'userPostList';
     const listElement = document.getElementById(listId);
@@ -485,44 +864,68 @@ function renderPosts(userType) {
     }
     
     listElement.innerHTML = posts.map(post => {
-        const escapedContent = escapeHtml(post.content);
+        const formattedContent = formatText(post.content);
         const escapedEstimate = escapeHtml(post.estimate);
+        const escapedWorker = escapeHtml(post.worker || '미지정');
+        
+        // 썸네일 이미지 가져오기 (첫 번째 이미지)
+        const thumbnail = post.images.length > 0 ? post.images[0] : null;
+        const isVideoThumbnail = thumbnail && (thumbnail.startsWith('data:video/') || thumbnail.startsWith('data:application/json;base64,'));
         
         return `
-        <div class="post-item">
+        <div class="post-item" onclick="showPostDetail(${post.id})">
             <div class="post-header">
                 <div class="post-date">📅 ${post.date}</div>
-                ${userType === 'admin' ? `
-                    <button class="btn-danger" onclick="deletePost(${post.id})">🗑️ 삭제</button>
-                ` : ''}
+                <div class="post-actions" onclick="event.stopPropagation()">
+                    ${post.password ? `
+                        <button class="btn-edit" onclick="event.stopPropagation(); showEditPost(${post.id})">✏️</button>
+                        <button class="btn-danger" onclick="event.stopPropagation(); deletePost(${post.id})">🗑️</button>
+                    ` : ''}
+                    ${(userType === 'admin' && !post.password) ? `
+                        <button class="btn-danger" onclick="event.stopPropagation(); deletePost(${post.id})">🗑️</button>
+                    ` : ''}
+                </div>
+            </div>
+            
+            <div class="post-thumbnail">
+                ${thumbnail ? `
+                    ${isVideoThumbnail ? `
+                        <div class="video-container" style="width: 100%; height: 100%;">
+                            <div class="video-placeholder">
+                                <div class="play-icon">▶</div>
+                            </div>
+                        </div>
+                    ` : `
+                        <img src="${thumbnail}" alt="썸네일">
+                    `}
+                    ${post.images.length > 1 ? `
+                        <div class="image-count">📷 ${post.images.length}</div>
+                    ` : ''}
+                ` : `
+                    <div class="no-image">📷</div>
+                `}
             </div>
             
             <div class="post-content">
-                <h3>📝 시공 내용</h3>
-                <p>${escapedContent}</p>
+                <p class="formatted-text">${formattedContent}</p>
             </div>
             
             <div class="post-details">
                 <div class="detail-item">
-                    <div class="detail-label">💰 견적</div>
-                    <div class="detail-value">${escapedEstimate}</div>
+                    <span class="detail-label">👷</span>
+                    <span class="detail-value">${escapedWorker}</span>
                 </div>
                 <div class="detail-item">
-                    <div class="detail-label">📏 실측 여부</div>
-                    <div class="detail-value ${post.survey === '했음' ? 'survey-yes' : 'survey-no'}">
+                    <span class="detail-label">💰</span>
+                    <span class="detail-value">${escapedEstimate}</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">📏</span>
+                    <span class="detail-value ${post.survey === '했음' ? 'survey-yes' : 'survey-no'}">
                         ${post.survey === '했음' ? '✅' : '❌'} ${post.survey}
-                    </div>
+                    </span>
                 </div>
             </div>
-            
-            ${post.images.length > 0 ? `
-                <div class="post-images">
-                    ${post.images.map((img, index) => `
-                        <img src="${img}" alt="시공 이미지 ${index + 1}" class="post-image" 
-                             onclick="showImageModalById(${post.id}, ${index})">
-                    `).join('')}
-                </div>
-            ` : ''}
         </div>
     `;
     }).join('');
@@ -538,8 +941,20 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
+// 텍스트를 보기 좋게 줄바꿈하는 함수
+function formatText(text) {
+    if (!text) return '';
+    
+    // HTML 이스케이프 먼저 적용
+    const escaped = escapeHtml(text);
+    
+    // 줄바꿈 문자를 <br>로 변환
+    return escaped.replace(/\n/g, '<br>');
+}
+
 // 전역 함수 등록
 window.escapeHtml = escapeHtml;
+window.formatText = formatText;
 
 // 검색 기능
 function searchPosts(userType) {
@@ -554,7 +969,8 @@ function searchPosts(userType) {
     const filteredPosts = posts.filter(post => {
         return post.content.toLowerCase().includes(searchTerm) ||
                post.estimate.toLowerCase().includes(searchTerm) ||
-               post.survey.toLowerCase().includes(searchTerm);
+               post.survey.toLowerCase().includes(searchTerm) ||
+               (post.worker && post.worker.toLowerCase().includes(searchTerm));
     });
     
     const listId = userType === 'admin' ? 'adminPostList' : 'userPostList';
@@ -571,44 +987,68 @@ function searchPosts(userType) {
     }
     
     listElement.innerHTML = filteredPosts.map(post => {
-        const escapedContent = escapeHtml(post.content);
+        const formattedContent = formatText(post.content);
         const escapedEstimate = escapeHtml(post.estimate);
+        const escapedWorker = escapeHtml(post.worker || '미지정');
+        
+        // 썸네일 이미지 가져오기 (첫 번째 이미지)
+        const thumbnail = post.images.length > 0 ? post.images[0] : null;
+        const isVideoThumbnail = thumbnail && (thumbnail.startsWith('data:video/') || thumbnail.startsWith('data:application/json;base64,'));
         
         return `
-        <div class="post-item">
+        <div class="post-item" onclick="showPostDetail(${post.id})">
             <div class="post-header">
                 <div class="post-date">📅 ${post.date}</div>
-                ${userType === 'admin' ? `
-                    <button class="btn-danger" onclick="deletePost(${post.id})">🗑️ 삭제</button>
-                ` : ''}
+                <div class="post-actions" onclick="event.stopPropagation()">
+                    ${post.password ? `
+                        <button class="btn-edit" onclick="event.stopPropagation(); showEditPost(${post.id})">✏️</button>
+                        <button class="btn-danger" onclick="event.stopPropagation(); deletePost(${post.id})">🗑️</button>
+                    ` : ''}
+                    ${(userType === 'admin' && !post.password) ? `
+                        <button class="btn-danger" onclick="event.stopPropagation(); deletePost(${post.id})">🗑️</button>
+                    ` : ''}
+                </div>
+            </div>
+            
+            <div class="post-thumbnail">
+                ${thumbnail ? `
+                    ${isVideoThumbnail ? `
+                        <div class="video-container" style="width: 100%; height: 100%;">
+                            <div class="video-placeholder">
+                                <div class="play-icon">▶</div>
+                            </div>
+                        </div>
+                    ` : `
+                        <img src="${thumbnail}" alt="썸네일">
+                    `}
+                    ${post.images.length > 1 ? `
+                        <div class="image-count">📷 ${post.images.length}</div>
+                    ` : ''}
+                ` : `
+                    <div class="no-image">📷</div>
+                `}
             </div>
             
             <div class="post-content">
-                <h3>📝 시공 내용</h3>
-                <p>${escapedContent}</p>
+                <p class="formatted-text">${formattedContent}</p>
             </div>
             
             <div class="post-details">
                 <div class="detail-item">
-                    <div class="detail-label">💰 견적</div>
-                    <div class="detail-value">${escapedEstimate}</div>
+                    <span class="detail-label">👷</span>
+                    <span class="detail-value">${escapedWorker}</span>
                 </div>
                 <div class="detail-item">
-                    <div class="detail-label">📏 실측 여부</div>
-                    <div class="detail-value ${post.survey === '했음' ? 'survey-yes' : 'survey-no'}">
+                    <span class="detail-label">💰</span>
+                    <span class="detail-value">${escapedEstimate}</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">📏</span>
+                    <span class="detail-value ${post.survey === '했음' ? 'survey-yes' : 'survey-no'}">
                         ${post.survey === '했음' ? '✅' : '❌'} ${post.survey}
-                    </div>
+                    </span>
                 </div>
             </div>
-            
-            ${post.images.length > 0 ? `
-                <div class="post-images">
-                    ${post.images.map((img, index) => `
-                        <img src="${img}" alt="시공 이미지 ${index + 1}" class="post-image" 
-                             onclick="showImageModalById(${post.id}, ${index})">
-                    `).join('')}
-                </div>
-            ` : ''}
         </div>
     `;
     }).join('');
@@ -618,31 +1058,214 @@ function searchPosts(userType) {
 window.searchPosts = searchPosts;
 
 // 이미지 모달 표시 (ID로 찾기)
+let currentImageIndex = 0;
+let currentPostImages = [];
+let currentPostId = null;
+
 function showImageModalById(postId, imageIndex) {
     const post = posts.find(p => p.id === postId);
     if (post && post.images[imageIndex]) {
+        currentPostId = postId;
+        currentPostImages = post.images;
+        currentImageIndex = imageIndex;
         showImageModal(post.images[imageIndex]);
+    }
+}
+
+// 다음 이미지
+function showNextImage() {
+    if (currentPostImages.length > 0) {
+        currentImageIndex = (currentImageIndex + 1) % currentPostImages.length;
+        showImageModal(currentPostImages[currentImageIndex]);
+    }
+}
+
+// 이전 이미지
+function showPreviousImage() {
+    if (currentPostImages.length > 0) {
+        currentImageIndex = (currentImageIndex - 1 + currentPostImages.length) % currentPostImages.length;
+        showImageModal(currentPostImages[currentImageIndex]);
     }
 }
 
 // 전역 함수 등록
 window.showImageModalById = showImageModalById;
+window.showNextImage = showNextImage;
+window.showPreviousImage = showPreviousImage;
 
-// 이미지 모달 표시
-function showImageModal(imageSrc) {
+// 압축된 비디오 재생 함수
+function playCompressedVideo(videoData) {
+    return new Promise((resolve, reject) => {
+        try {
+            // JSON 데이터 파싱
+            const base64Data = videoData.split(',')[1];
+            const jsonStr = atob(base64Data);
+            const videoInfo = JSON.parse(jsonStr);
+            
+            const canvas = document.createElement('canvas');
+            canvas.width = videoInfo.width;
+            canvas.height = videoInfo.height;
+            canvas.style.width = '100%';
+            canvas.style.borderRadius = '10px';
+            canvas.style.cursor = 'pointer';
+            
+            const ctx = canvas.getContext('2d');
+            let currentFrame = 0;
+            let isPlaying = false;
+            let animationId = null;
+            
+            const frames = videoInfo.frames.map(frameData => {
+                const img = new Image();
+                img.src = frameData;
+                return img;
+            });
+            
+            // 첫 프레임 로드
+            frames[0].onload = function() {
+                ctx.drawImage(frames[0], 0, 0, videoInfo.width, videoInfo.height);
+                
+                // 재생 버튼 그리기
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+                ctx.beginPath();
+                ctx.arc(videoInfo.width / 2, videoInfo.height / 2, 40, 0, Math.PI * 2);
+                ctx.fill();
+                
+                ctx.fillStyle = 'white';
+                ctx.beginPath();
+                ctx.moveTo(videoInfo.width / 2 - 15, videoInfo.height / 2 - 20);
+                ctx.lineTo(videoInfo.width / 2 - 15, videoInfo.height / 2 + 20);
+                ctx.lineTo(videoInfo.width / 2 + 20, videoInfo.height / 2);
+                ctx.closePath();
+                ctx.fill();
+            };
+            
+            const playVideo = () => {
+                if (!isPlaying) return;
+                
+                if (currentFrame < frames.length) {
+                    if (frames[currentFrame].complete) {
+                        ctx.drawImage(frames[currentFrame], 0, 0, videoInfo.width, videoInfo.height);
+                    }
+                    currentFrame++;
+                    
+                    const frameDuration = 1000 / videoInfo.fps;
+                    animationId = setTimeout(() => {
+                        playVideo();
+                    }, frameDuration);
+                } else {
+                    // 재생 완료
+                    isPlaying = false;
+                    currentFrame = 0;
+                    
+                    // 첫 프레임으로 돌아가기
+                    ctx.drawImage(frames[0], 0, 0, videoInfo.width, videoInfo.height);
+                    
+                    // 재생 버튼 다시 그리기
+                    ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+                    ctx.beginPath();
+                    ctx.arc(videoInfo.width / 2, videoInfo.height / 2, 40, 0, Math.PI * 2);
+                    ctx.fill();
+                    
+                    ctx.fillStyle = 'white';
+                    ctx.beginPath();
+                    ctx.moveTo(videoInfo.width / 2 - 15, videoInfo.height / 2 - 20);
+                    ctx.lineTo(videoInfo.width / 2 - 15, videoInfo.height / 2 + 20);
+                    ctx.lineTo(videoInfo.width / 2 + 20, videoInfo.height / 2);
+                    ctx.closePath();
+                    ctx.fill();
+                }
+            };
+            
+            canvas.onclick = function() {
+                if (!isPlaying) {
+                    isPlaying = true;
+                    currentFrame = 0;
+                    playVideo();
+                } else {
+                    isPlaying = false;
+                    if (animationId) clearTimeout(animationId);
+                }
+            };
+            
+            resolve(canvas);
+        } catch (error) {
+            reject(error);
+        }
+    });
+}
+
+// 전역 함수 등록
+window.playCompressedVideo = playCompressedVideo;
+
+// 이미지/비디오 모달 표시
+function showImageModal(mediaSrc) {
     const modal = document.getElementById('postModal');
     const modalContent = document.getElementById('modalPostContent');
     
-    modalContent.innerHTML = `
-        <img src="${imageSrc}" style="width: 100%; border-radius: 10px;">
-    `;
+    const isCompressedVideo = mediaSrc.startsWith('data:application/json;base64,');
+    const isOriginalVideo = mediaSrc.startsWith('data:video/');
     
-    modal.style.display = 'block';
+    // 네비게이션 버튼 HTML
+    const navigationHTML = currentPostImages.length > 1 ? `
+        <button class="modal-nav-btn prev-btn" onclick="showPreviousImage()" title="이전 이미지">
+            <span>&#10094;</span>
+        </button>
+        <button class="modal-nav-btn next-btn" onclick="showNextImage()" title="다음 이미지">
+            <span>&#10095;</span>
+        </button>
+        <div class="image-counter">
+            ${currentImageIndex + 1} / ${currentPostImages.length}
+        </div>
+    ` : '';
+    
+    if (isCompressedVideo) {
+        // 압축된 비디오 재생
+        playCompressedVideo(mediaSrc).then(canvas => {
+            modalContent.innerHTML = `
+                <div style="position: relative;">
+                    ${navigationHTML}
+                </div>
+            `;
+            modalContent.querySelector('div').insertBefore(canvas, modalContent.querySelector('div').firstChild);
+            modal.style.display = 'block';
+        }).catch(error => {
+            console.error('비디오 재생 실패:', error);
+            modalContent.innerHTML = `
+                <div style="padding: 20px; text-align: center;">
+                    <p>❌ 비디오를 재생할 수 없습니다.</p>
+                    ${navigationHTML}
+                </div>
+            `;
+            modal.style.display = 'block';
+        });
+    } else if (isOriginalVideo) {
+        modalContent.innerHTML = `
+            <div style="position: relative;">
+                <video src="${mediaSrc}" style="width: 100%; border-radius: 10px;" controls autoplay>
+                    브라우저가 비디오를 지원하지 않습니다.
+                </video>
+                ${navigationHTML}
+            </div>
+        `;
+        modal.style.display = 'block';
+    } else {
+        modalContent.innerHTML = `
+            <div style="position: relative;">
+                <img src="${mediaSrc}" style="width: 100%; border-radius: 10px;">
+                ${navigationHTML}
+            </div>
+        `;
+        modal.style.display = 'block';
+    }
 }
 
 // 모달 닫기
 function closeModal() {
     document.getElementById('postModal').style.display = 'none';
+    // 상태 초기화
+    currentImageIndex = 0;
+    currentPostImages = [];
+    currentPostId = null;
 }
 
 // 전역 함수 등록
@@ -655,6 +1278,20 @@ document.addEventListener('DOMContentLoaded', function() {
     (async function() {
         await initDatabase();
     })();
+    
+    // 키보드 이벤트 리스너 (이미지 네비게이션)
+    document.addEventListener('keydown', function(e) {
+        const modal = document.getElementById('postModal');
+        if (modal && modal.style.display === 'block' && currentPostImages.length > 1) {
+            if (e.key === 'ArrowLeft') {
+                showPreviousImage();
+            } else if (e.key === 'ArrowRight') {
+                showNextImage();
+            } else if (e.key === 'Escape') {
+                closeModal();
+            }
+        }
+    });
     
     // 로그인 관련 이벤트
     const loginButton = document.getElementById('loginButton');
@@ -848,4 +1485,409 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
+    
+    // 수정 모달 닫기 버튼
+    const editModalCloseButton = document.getElementById('editModalCloseButton');
+    if (editModalCloseButton) {
+        editModalCloseButton.addEventListener('click', closeEditModal);
+    }
+    
+    const cancelEditButton = document.getElementById('cancelEditButton');
+    if (cancelEditButton) {
+        cancelEditButton.addEventListener('click', closeEditModal);
+    }
+    
+    const saveEditButton = document.getElementById('saveEditButton');
+    if (saveEditButton) {
+        saveEditButton.addEventListener('click', saveEditedPost);
+    }
+    
+    // 이미지 미리보기 초기화
+    imagePreviewManager.init('adminForm', 'adminImage', 'adminImagePreview');
+    imagePreviewManager.init('userForm', 'userImage', 'userImagePreview');
+    imagePreviewManager.init('adminMaterialForm', 'adminMaterialImage', 'adminMaterialImagePreview');
+    imagePreviewManager.init('userMaterialForm', 'userMaterialImage', 'userMaterialImagePreview');
 });
+
+// 게시글 수정 관련 전역 변수
+let currentEditingPostId = null;
+
+// 게시글 수정 모달 표시
+async function showEditPost(postId) {
+    const post = posts.find(p => p.id === postId);
+    if (!post) {
+        alert('❌ 게시글을 찾을 수 없습니다.');
+        return;
+    }
+    
+    if (!post.password) {
+        alert('❌ 이 게시글은 수정할 수 없습니다.');
+        return;
+    }
+    
+    // 비밀번호 확인
+    const inputPassword = prompt('수정 비밀번호를 입력하세요 (4자리):');
+    if (!inputPassword) return;
+    
+    try {
+        const hashedInput = await hashPassword(inputPassword);
+        
+        if (hashedInput !== post.password) {
+            alert('❌ 비밀번호가 일치하지 않습니다.');
+            return;
+        }
+        
+        // 비밀번호 일치, 수정 모달 표시
+        currentEditingPostId = postId;
+        
+        document.getElementById('editWorker').value = post.worker || '';
+        document.getElementById('editContent').value = post.content;
+        document.getElementById('editEstimate').value = post.estimate;
+        document.getElementById('editSurvey').value = post.survey;
+        
+        const editModal = document.getElementById('editPostModal');
+        editModal.style.display = 'block';
+        
+    } catch (error) {
+        console.error('비밀번호 확인 실패:', error);
+        alert('❌ 오류가 발생했습니다.');
+    }
+}
+
+// 수정 모달 닫기
+function closeEditModal() {
+    const editModal = document.getElementById('editPostModal');
+    editModal.style.display = 'none';
+    currentEditingPostId = null;
+}
+
+// 수정된 게시글 저장
+async function saveEditedPost() {
+    if (!currentEditingPostId) return;
+    
+    const worker = document.getElementById('editWorker').value.trim();
+    const content = document.getElementById('editContent').value.trim();
+    const estimate = document.getElementById('editEstimate').value.trim();
+    const survey = document.getElementById('editSurvey').value;
+    
+    if (!worker) {
+        alert('❌ 시공자를 입력하세요.');
+        return;
+    }
+    
+    if (!content) {
+        alert('❌ 시공 내용을 입력하세요.');
+        return;
+    }
+    
+    if (!estimate) {
+        alert('❌ 견적을 입력하세요.');
+        return;
+    }
+    
+    try {
+        const post = posts.find(p => p.id === currentEditingPostId);
+        
+        if (!post) {
+            alert('❌ 게시글을 찾을 수 없습니다.');
+            return;
+        }
+        
+        // 업데이트할 데이터
+        const updatedPost = {
+            ...post,
+            worker: worker,
+            content: content,
+            estimate: estimate,
+            survey: survey,
+            date: new Date().toLocaleString('ko-KR') + ' (수정됨)'
+        };
+        
+        await window.postDB.updatePost(currentEditingPostId, updatedPost);
+        await loadData();
+        
+        // 현재 화면 타입에 따라 렌더링
+        if (currentUser === 'admin') {
+            renderPosts('admin');
+        } else {
+            renderPosts('user');
+        }
+        
+        closeEditModal();
+        alert('✅ 게시글이 수정되었습니다.');
+        
+    } catch (error) {
+        console.error('게시글 수정 실패:', error);
+        alert('❌ 게시글 수정 중 오류가 발생했습니다.');
+    }
+}
+
+// 게시글 상세보기 표시
+function showPostDetail(postId) {
+    const post = posts.find(p => p.id === postId);
+    if (!post) return;
+    
+    const modal = document.getElementById('postModal');
+    const modalContent = document.getElementById('modalPostContent');
+    
+    const formattedContent = formatText(post.content);
+    const escapedEstimate = escapeHtml(post.estimate);
+    const escapedWorker = escapeHtml(post.worker || '미지정');
+    
+    modalContent.innerHTML = `
+        <div style="max-width: 100%;">
+            <div style="margin-bottom: 20px; padding-bottom: 15px; border-bottom: 2px solid #f0f0f0;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                    <div style="color: #999; font-size: 14px;">📅 ${post.date}</div>
+                    <div style="display: flex; gap: 8px;">
+                        ${post.password && currentUser ? `
+                            <button class="btn-edit" onclick="closeModal(); showEditPost(${post.id})">✏️ 수정</button>
+                            <button class="btn-danger" onclick="closeModal(); deletePost(${post.id})">🗑️ 삭제</button>
+                        ` : ''}
+                        ${(!post.password && currentUser === 'admin') ? `
+                            <button class="btn-danger" onclick="closeModal(); deletePost(${post.id})">🗑️ 삭제</button>
+                        ` : ''}
+                    </div>
+                </div>
+            </div>
+            
+            <div style="margin-bottom: 20px;">
+                <h3 style="color: #333; margin-bottom: 15px; font-size: 18px;">📝 시공 내용</h3>
+                <p style="white-space: pre-wrap; word-wrap: break-word; line-height: 1.8; color: #444; font-size: 15px;">${formattedContent}</p>
+            </div>
+            
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px;">
+                <div style="padding: 15px; background: #f8f9fa; border-radius: 8px;">
+                    <div style="font-weight: bold; color: #666; font-size: 14px; margin-bottom: 8px;">👷 시공자</div>
+                    <div style="color: #333; font-size: 16px;">${escapedWorker}</div>
+                </div>
+                <div style="padding: 15px; background: #f8f9fa; border-radius: 8px;">
+                    <div style="font-weight: bold; color: #666; font-size: 14px; margin-bottom: 8px;">💰 견적</div>
+                    <div style="color: #333; font-size: 16px;">${escapedEstimate}</div>
+                </div>
+                <div style="padding: 15px; background: #f8f9fa; border-radius: 8px;">
+                    <div style="font-weight: bold; color: #666; font-size: 14px; margin-bottom: 8px;">📏 실측 여부</div>
+                    <div style="color: #333; font-size: 16px; font-weight: bold;" class="${post.survey === '했음' ? 'survey-yes' : 'survey-no'}">
+                        ${post.survey === '했음' ? '✅' : '❌'} ${post.survey}
+                    </div>
+                </div>
+            </div>
+            
+            ${post.images.length > 0 ? `
+                <div style="margin-top: 20px;">
+                    <h3 style="color: #333; margin-bottom: 15px; font-size: 18px;">📷 첨부 파일 (${post.images.length})</h3>
+                    <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px;">
+                        ${post.images.map((media, index) => {
+                            const isVideo = media.startsWith('data:video/') || media.startsWith('data:application/json;base64,');
+                            if (isVideo) {
+                                return `
+                                    <div class="post-image video-container" onclick="event.stopPropagation(); showImageModalById(${post.id}, ${index})" 
+                                         data-video-data="${media.replace(/"/g, '&quot;')}" style="cursor: pointer;">
+                                        <div class="video-placeholder">
+                                            <div class="play-icon">▶</div>
+                                            <small>클릭하여 재생</small>
+                                        </div>
+                                    </div>
+                                `;
+                            } else {
+                                return `
+                                    <img src="${media}" alt="시공 이미지 ${index + 1}" 
+                                         style="width: 100%; height: 150px; object-fit: cover; border-radius: 8px; cursor: pointer;"
+                                         onclick="event.stopPropagation(); showImageModalById(${post.id}, ${index})">
+                                `;
+                            }
+                        }).join('')}
+                    </div>
+                </div>
+            ` : ''}
+        </div>
+    `;
+    
+    modal.style.display = 'block';
+}
+
+// 전역 함수 등록
+window.showPostDetail = showPostDetail;
+window.showEditPost = showEditPost;
+window.closeEditModal = closeEditModal;
+window.saveEditedPost = saveEditedPost;
+
+// 이미지 미리보기 관리 객체
+const imagePreviewManager = {
+    previews: new Map(), // formId -> { files: [], selectedIndex: 0, processedData: [] }
+    initialized: new Set(), // 초기화된 input ID 추적
+    
+    // 파일 입력 이벤트 핸들러 등록
+    init(formId, inputId, containerId) {
+        const input = document.getElementById(inputId);
+        const container = document.getElementById(containerId);
+        
+        if (!input || !container) {
+            console.warn(`imagePreviewManager: 요소를 찾을 수 없습니다 - inputId: ${inputId}, containerId: ${containerId}`);
+            return;
+        }
+        
+        // 이미 초기화된 경우 스킵
+        if (this.initialized.has(inputId)) {
+            return;
+        }
+        
+        console.log(`imagePreviewManager: 초기화 - ${inputId}`);
+        
+        // 기존 데이터 초기화
+        this.previews.set(formId, {
+            files: [],
+            selectedIndex: 0,
+            processedData: []
+        });
+        
+        // 이벤트 리스너 등록
+        input.addEventListener('change', (e) => {
+            console.log(`파일 선택됨: ${e.target.files.length}개`);
+            this.handleFileChange(formId, e.target.files, containerId);
+        });
+        
+        this.initialized.add(inputId);
+    },
+    
+    // 파일 변경 처리
+    handleFileChange(formId, files, containerId) {
+        const data = this.previews.get(formId) || { files: [], selectedIndex: 0, processedData: [] };
+        data.files = Array.from(files);
+        data.selectedIndex = 0; // 첫 번째 이미지를 기본 대표사진으로
+        data.processedData = [];
+        this.previews.set(formId, data);
+        
+        console.log(`미리보기 렌더링: ${data.files.length}개 파일`);
+        this.renderPreviews(formId, containerId);
+    },
+    
+    // 미리보기 렌더링
+    renderPreviews(formId, containerId) {
+        const container = document.getElementById(containerId);
+        if (!container) {
+            console.error(`컨테이너를 찾을 수 없습니다: ${containerId}`);
+            return;
+        }
+        
+        const data = this.previews.get(formId);
+        if (!data || data.files.length === 0) {
+            container.innerHTML = '';
+            container.style.display = 'none';
+            return;
+        }
+        
+        container.style.display = 'grid';
+        
+        const previewItems = data.files.map((file, index) => {
+            const isVideo = file.type.startsWith('video/');
+            const isSelected = index === data.selectedIndex;
+            const objectUrl = URL.createObjectURL(file);
+            
+            return `
+                <div class="image-preview-item ${isSelected ? 'selected' : ''}" 
+                     data-index="${index}"
+                     onclick="imagePreviewManager.selectImage('${formId}', ${index}, '${containerId}')">
+                    ${isSelected ? '<div class="image-preview-badge">대표</div>' : ''}
+                    <button class="image-preview-remove" 
+                            onclick="event.stopPropagation(); imagePreviewManager.removeImage('${formId}', ${index}, '${containerId}')"
+                            title="삭제">×</button>
+                    ${isVideo ? 
+                        `<video src="${objectUrl}" muted></video>` : 
+                        `<img src="${objectUrl}" alt="미리보기 ${index + 1}">`
+                    }
+                </div>
+            `;
+        }).join('');
+        
+        container.innerHTML = previewItems + 
+        `<div class="image-preview-hint">
+            💡 클릭하여 대표사진을 선택하세요
+        </div>`;
+        
+        console.log(`미리보기 렌더링 완료: ${data.files.length}개`);
+    },
+    
+    // 이미지 선택
+    selectImage(formId, index, containerId) {
+        const data = this.previews.get(formId);
+        if (!data) return;
+        
+        data.selectedIndex = index;
+        this.previews.set(formId, data);
+        this.renderPreviews(formId, containerId);
+    },
+    
+    // 이미지 삭제
+    removeImage(formId, index, containerId) {
+        const data = this.previews.get(formId);
+        if (!data) return;
+        
+        data.files.splice(index, 1);
+        
+        // 선택된 인덱스 조정
+        if (data.selectedIndex >= data.files.length) {
+            data.selectedIndex = Math.max(0, data.files.length - 1);
+        }
+        
+        this.previews.set(formId, data);
+        this.renderPreviews(formId, containerId);
+        
+        // 파일 입력 업데이트
+        this.updateFileInput(formId, containerId);
+    },
+    
+    // 파일 입력 업데이트
+    updateFileInput(formId, containerId) {
+        const data = this.previews.get(formId);
+        if (!data) return;
+        
+        const inputId = containerId.replace('Preview', '');
+        const input = document.getElementById(inputId);
+        
+        if (input && data.files.length === 0) {
+            input.value = '';
+        }
+    },
+    
+    // 정렬된 파일 배열 가져오기 (대표사진이 첫 번째)
+    getSortedFiles(formId) {
+        const data = this.previews.get(formId);
+        if (!data || data.files.length === 0) return [];
+        
+        const sortedFiles = [...data.files];
+        const selectedFile = sortedFiles.splice(data.selectedIndex, 1)[0];
+        sortedFiles.unshift(selectedFile);
+        
+        return sortedFiles;
+    },
+    
+    // 처리된 데이터 저장 (압축 후)
+    setProcessedData(formId, processedData) {
+        const data = this.previews.get(formId);
+        if (!data) return;
+        
+        data.processedData = processedData;
+        this.previews.set(formId, data);
+    },
+    
+    // 정렬된 처리 데이터 가져오기
+    getSortedProcessedData(formId) {
+        const data = this.previews.get(formId);
+        if (!data || data.processedData.length === 0) return [];
+        
+        const sortedData = [...data.processedData];
+        const selectedData = sortedData.splice(data.selectedIndex, 1)[0];
+        sortedData.unshift(selectedData);
+        
+        return sortedData;
+    },
+    
+    // 초기화
+    clear(formId) {
+        this.previews.delete(formId);
+    }
+};
+
+// 전역 함수 등록
+window.imagePreviewManager = imagePreviewManager;

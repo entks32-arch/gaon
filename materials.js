@@ -67,6 +67,8 @@ window.switchTab = switchTab;
 // 자재 등록 폼 표시/숨기기
 function showAddMaterialForm() {
     document.getElementById('addMaterialForm').style.display = 'block';
+    // 이미지 미리보기 초기화
+    imagePreviewManager.init('adminMaterialForm', 'adminMaterialImage', 'adminMaterialImagePreview');
 }
 
 function hideAddMaterialForm() {
@@ -76,6 +78,8 @@ function hideAddMaterialForm() {
 
 function showUserAddMaterialForm() {
     document.getElementById('userAddMaterialForm').style.display = 'block';
+    // 이미지 미리보기 초기화
+    imagePreviewManager.init('userMaterialForm', 'userMaterialImage', 'userMaterialImagePreview');
 }
 
 function hideUserAddMaterialForm() {
@@ -85,16 +89,42 @@ function hideUserAddMaterialForm() {
 
 function clearMaterialForm() {
     document.getElementById('adminMaterialName').value = '';
-    document.getElementById('adminMaterialDesc').value = '';
+    document.getElementById('adminMaterialDesc').value = `제품명 : 
+
+규 격 : 
+
+특 징 : 
+
+비 고 : `;
     document.getElementById('adminMaterialPrice').value = '';
     document.getElementById('adminMaterialImage').value = '';
+    
+    // 이미지 미리보기 초기화
+    const previewContainer = document.getElementById('adminMaterialImagePreview');
+    if (previewContainer) {
+        previewContainer.innerHTML = '';
+    }
+    imagePreviewManager.clear('adminMaterialForm');
 }
 
 function clearUserMaterialForm() {
     document.getElementById('userMaterialName').value = '';
-    document.getElementById('userMaterialDesc').value = '';
+    document.getElementById('userMaterialDesc').value = `제품명 : 
+
+규 격 : 
+
+특 징 : 
+
+비 고 : `;
     document.getElementById('userMaterialPrice').value = '';
     document.getElementById('userMaterialImage').value = '';
+    
+    // 이미지 미리보기 초기화
+    const previewContainer = document.getElementById('userMaterialImagePreview');
+    if (previewContainer) {
+        previewContainer.innerHTML = '';
+    }
+    imagePreviewManager.clear('userMaterialForm');
 }
 
 // 전역 함수 등록
@@ -122,34 +152,57 @@ function addMaterial() {
         return;
     }
     
-    const images = [];
-    const files = imageInput.files;
+    const media = [];
     
-    if (files.length > 0) {
-        console.log('이미지 파일 처리 시작:', files.length, '개');
+    // 미리보기 매니저에서 정렬된 파일 가져오기 (대표사진이 첫 번째)
+    const sortedFiles = window.imagePreviewManager.getSortedFiles('adminMaterialForm');
+    
+    if (sortedFiles.length > 0) {
+        console.log('파일 처리 시작:', sortedFiles.length, '개');
         
-        if (files.length > 8) {
-            alert('⚠️ 이미지는 최대 8개까지 업로드할 수 있습니다.');
+        if (sortedFiles.length > 8) {
+            alert('⚠️ 파일은 최대 8개까지 업로드할 수 있습니다.');
             return;
+        }
+        
+        // 프로그레스 모달 표시
+        window.uploadProgress.show();
+        
+        // 각 파일에 대한 프로그레스 항목 추가
+        for (let i = 0; i < sortedFiles.length; i++) {
+            const fileId = 'file-' + Date.now() + '-' + i;
+            const isVideo = window.isVideoFile(sortedFiles[i]);
+            window.uploadProgress.addFile(fileId, sortedFiles[i].name, isVideo);
         }
         
         const promises = [];
         
-        for (let i = 0; i < files.length; i++) {
-            promises.push(window.compressImage(files[i]));
+        for (let i = 0; i < sortedFiles.length; i++) {
+            if (window.isVideoFile(sortedFiles[i])) {
+                promises.push(window.compressVideo(sortedFiles[i]));
+            } else {
+                promises.push(window.compressImage(sortedFiles[i]));
+            }
         }
         
         Promise.all(promises)
-            .then(async compressedImages => {
-                console.log('모든 이미지 압축 완료, 저장 시작');
-                await saveMaterial(name, desc, price, compressedImages);
+            .then(async processedMedia => {
+                console.log('모든 파일 처리 완료, 저장 시작');
+                
+                // 1초 후 모달 닫기
+                setTimeout(() => {
+                    window.uploadProgress.hide();
+                }, 1000);
+                
+                await saveMaterial(name, desc, price, processedMedia);
             })
             .catch(error => {
-                console.error('이미지 압축 실패:', error);
-                alert('❌ 이미지 처리 중 오류가 발생했습니다.');
+                console.error('파일 처리 실패:', error);
+                window.uploadProgress.hide();
+                alert('❌ 파일 처리 중 오류가 발생했습니다.');
             });
     } else {
-        saveMaterial(name, desc, price, images);
+        saveMaterial(name, desc, price, media);
     }
 }
 
@@ -172,34 +225,57 @@ function addUserMaterial() {
         return;
     }
     
-    const images = [];
-    const files = imageInput.files;
+    const media = [];
     
-    if (files.length > 0) {
-        console.log('이미지 파일 처리 시작:', files.length, '개');
+    // 미리보기 매니저에서 정렬된 파일 가져오기 (대표사진이 첫 번째)
+    const sortedFiles = window.imagePreviewManager.getSortedFiles('userMaterialForm');
+    
+    if (sortedFiles.length > 0) {
+        console.log('파일 처리 시작:', sortedFiles.length, '개');
         
-        if (files.length > 8) {
-            alert('⚠️ 이미지는 최대 8개까지 업로드할 수 있습니다.');
+        if (sortedFiles.length > 8) {
+            alert('⚠️ 파일은 최대 8개까지 업로드할 수 있습니다.');
             return;
+        }
+        
+        // 프로그레스 모달 표시
+        window.uploadProgress.show();
+        
+        // 각 파일에 대한 프로그레스 항목 추가
+        for (let i = 0; i < sortedFiles.length; i++) {
+            const fileId = 'file-' + Date.now() + '-' + i;
+            const isVideo = window.isVideoFile(sortedFiles[i]);
+            window.uploadProgress.addFile(fileId, sortedFiles[i].name, isVideo);
         }
         
         const promises = [];
         
-        for (let i = 0; i < files.length; i++) {
-            promises.push(window.compressImage(files[i]));
+        for (let i = 0; i < sortedFiles.length; i++) {
+            if (window.isVideoFile(sortedFiles[i])) {
+                promises.push(window.compressVideo(sortedFiles[i]));
+            } else {
+                promises.push(window.compressImage(sortedFiles[i]));
+            }
         }
         
         Promise.all(promises)
-            .then(async compressedImages => {
-                console.log('모든 이미지 압축 완료, 저장 시작');
-                await saveUserMaterial(name, desc, price, compressedImages);
+            .then(async processedMedia => {
+                console.log('모든 파일 처리 완료, 저장 시작');
+                
+                // 1초 후 모달 닫기
+                setTimeout(() => {
+                    window.uploadProgress.hide();
+                }, 1000);
+                
+                await saveUserMaterial(name, desc, price, processedMedia);
             })
             .catch(error => {
-                console.error('이미지 압축 실패:', error);
-                alert('❌ 이미지 처리 중 오류가 발생했습니다.');
+                console.error('파일 처리 실패:', error);
+                window.uploadProgress.hide();
+                alert('❌ 파일 처리 중 오류가 발생했습니다.');
             });
     } else {
-        saveUserMaterial(name, desc, price, images);
+        saveUserMaterial(name, desc, price, media);
     }
 }
 
@@ -309,7 +385,7 @@ function renderMaterials(userType) {
     
     listElement.innerHTML = materials.map(material => {
         const escapedName = window.escapeHtml(material.name);
-        const escapedDesc = window.escapeHtml(material.description || '');
+        const formattedDesc = window.formatText(material.description || '');
         const escapedPrice = window.escapeHtml(material.price);
         
         return `
@@ -323,7 +399,7 @@ function renderMaterials(userType) {
             
             <div class="post-content">
                 <h3>📦 ${escapedName}</h3>
-                ${escapedDesc ? `<p>${escapedDesc}</p>` : ''}
+                ${formattedDesc ? `<p class="formatted-text">${formattedDesc}</p>` : ''}
             </div>
             
             <div class="post-details">
@@ -335,10 +411,25 @@ function renderMaterials(userType) {
             
             ${material.images.length > 0 ? `
                 <div class="post-images">
-                    ${material.images.map((img, index) => `
-                        <img src="${img}" alt="자재 이미지 ${index + 1}" class="post-image" 
-                             onclick="showMaterialImageById(${material.id}, ${index})">
-                    `).join('')}
+                    ${material.images.map((media, index) => {
+                        const isVideo = media.startsWith('data:video/') || media.startsWith('data:application/json;base64,');
+                        if (isVideo) {
+                            return `
+                                <div class="post-image video-container" onclick="showMaterialImageById(${material.id}, ${index})" 
+                                     data-video-data="${media.replace(/"/g, '&quot;')}">
+                                    <div class="video-placeholder">
+                                        <div class="play-icon">▶</div>
+                                        <small>클릭하여 재생</small>
+                                    </div>
+                                </div>
+                            `;
+                        } else {
+                            return `
+                                <img src="${media}" alt="자재 이미지 ${index + 1}" class="post-image" 
+                                     onclick="showMaterialImageById(${material.id}, ${index})">
+                            `;
+                        }
+                    }).join('')}
                 </div>
             ` : ''}
         </div>
@@ -391,7 +482,7 @@ function searchMaterials(userType) {
     
     listElement.innerHTML = filteredMaterials.map(material => {
         const escapedName = window.escapeHtml(material.name);
-        const escapedDesc = window.escapeHtml(material.description || '');
+        const formattedDesc = window.formatText(material.description || '');
         const escapedPrice = window.escapeHtml(material.price);
         
         return `
@@ -405,7 +496,7 @@ function searchMaterials(userType) {
             
             <div class="post-content">
                 <h3>📦 ${escapedName}</h3>
-                ${escapedDesc ? `<p>${escapedDesc}</p>` : ''}
+                ${formattedDesc ? `<p class="formatted-text">${formattedDesc}</p>` : ''}
             </div>
             
             <div class="post-details">
@@ -417,10 +508,25 @@ function searchMaterials(userType) {
             
             ${material.images.length > 0 ? `
                 <div class="post-images">
-                    ${material.images.map((img, index) => `
-                        <img src="${img}" alt="자재 이미지 ${index + 1}" class="post-image" 
-                             onclick="showMaterialImageById(${material.id}, ${index})">
-                    `).join('')}
+                    ${material.images.map((media, index) => {
+                        const isVideo = media.startsWith('data:video/') || media.startsWith('data:application/json;base64,');
+                        if (isVideo) {
+                            return `
+                                <div class="post-image video-container" onclick="showMaterialImageById(${material.id}, ${index})" 
+                                     data-video-data="${media.replace(/"/g, '&quot;')}">
+                                    <div class="video-placeholder">
+                                        <div class="play-icon">▶</div>
+                                        <small>클릭하여 재생</small>
+                                    </div>
+                                </div>
+                            `;
+                        } else {
+                            return `
+                                <img src="${media}" alt="자재 이미지 ${index + 1}" class="post-image" 
+                                     onclick="showMaterialImageById(${material.id}, ${index})">
+                            `;
+                        }
+                    }).join('')}
                 </div>
             ` : ''}
         </div>
