@@ -1107,3 +1107,103 @@ body {
         transform: translateX(100%);
     }
 }
+
+/* 이미지 미리보기 컨테이너 */
+.image-preview-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: 10px;
+    margin-top: 15px;
+    padding: 10px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    min-height: 50px;
+}
+
+.image-preview-container:empty {
+    display: none;
+}
+
+.image-preview-item {
+    position: relative;
+    width: 100%;
+    padding-bottom: 100%;
+    background: #fff;
+    border-radius: 8px;
+    overflow: hidden;
+    cursor: pointer;
+    transition: all 0.3s;
+    border: 3px solid transparent;
+}
+
+.image-preview-item:hover {
+    transform: scale(1.05);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+}
+
+.image-preview-item.selected {
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.3);
+}
+
+.image-preview-item img,
+.image-preview-item video {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.image-preview-badge {
+    position: absolute;
+    top: 5px;
+    left: 5px;
+    background: rgba(102, 126, 234, 0.9);
+    color: white;
+    padding: 3px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: bold;
+    z-index: 2;
+}
+
+.image-preview-remove {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    background: rgba(220, 53, 69, 0.9);
+    color: white;
+    border: none;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    z-index: 2;
+    transition: all 0.2s;
+}
+
+.image-preview-remove:hover {
+    background: rgba(220, 53, 69, 1);
+    transform: scale(1.1);
+}
+
+.image-preview-hint {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 20px;
+    color: #666;
+    font-size: 13px;
+}
+
+@media (max-width: 768px) {
+    .image-preview-container {
+        grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+        gap: 8px;
+    }
+}

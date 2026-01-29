@@ -201,6 +201,13 @@ function clearForm() {
     document.getElementById('adminSurvey').value = '했음';
     document.getElementById('adminPassword').value = '';
     document.getElementById('adminImage').value = '';
+    
+    // 이미지 미리보기 초기화
+    const previewContainer = document.getElementById('adminImagePreview');
+    if (previewContainer) {
+        previewContainer.innerHTML = '';
+    }
+    imagePreviewManager.clear('adminForm');
 }
 
 // 사용자 폼 초기화
@@ -213,6 +220,13 @@ function clearUserForm() {
     document.getElementById('userSurvey').value = '했음';
     document.getElementById('userPassword').value = '';
     document.getElementById('userImage').value = '';
+    
+    // 이미지 미리보기 초기화
+    const previewContainer = document.getElementById('userImagePreview');
+    if (previewContainer) {
+        previewContainer.innerHTML = '';
+    }
+    imagePreviewManager.clear('userForm');
 }
 
 // 전역 함수 등록
@@ -523,13 +537,15 @@ function addPost() {
     
     // 이미지/비디오 파일 읽기 및 처리
     const media = [];
-    const files = imageInput.files;
     
-    if (files.length > 0) {
-        console.log('파일 처리 시작:', files.length, '개');
+    // 미리보기 매니저에서 정렬된 파일 가져오기 (대표사진이 첫 번째)
+    const sortedFiles = imagePreviewManager.getSortedFiles('adminForm');
+    
+    if (sortedFiles.length > 0) {
+        console.log('파일 처리 시작:', sortedFiles.length, '개');
         
         // 파일 개수 제한 (최대 8개)
-        if (files.length > 8) {
+        if (sortedFiles.length > 8) {
             alert('⚠️ 파일은 최대 8개까지 업로드할 수 있습니다.');
             return;
         }
@@ -538,19 +554,19 @@ function addPost() {
         uploadProgress.show();
         
         // 각 파일에 대한 프로그레스 항목 추가
-        for (let i = 0; i < files.length; i++) {
+        for (let i = 0; i < sortedFiles.length; i++) {
             const fileId = 'file-' + Date.now() + '-' + i;
-            const isVideo = isVideoFile(files[i]);
-            uploadProgress.addFile(fileId, files[i].name, isVideo);
+            const isVideo = isVideoFile(sortedFiles[i]);
+            uploadProgress.addFile(fileId, sortedFiles[i].name, isVideo);
         }
         
         const promises = [];
         
-        for (let i = 0; i < files.length; i++) {
-            if (isVideoFile(files[i])) {
-                promises.push(compressVideo(files[i]));
+        for (let i = 0; i < sortedFiles.length; i++) {
+            if (isVideoFile(sortedFiles[i])) {
+                promises.push(compressVideo(sortedFiles[i]));
             } else {
-                promises.push(compressImage(files[i]));
+                promises.push(compressImage(sortedFiles[i]));
             }
         }
         
@@ -614,13 +630,15 @@ function addUserPost() {
     
     // 이미지/비디오 파일 읽기 및 처리
     const media = [];
-    const files = imageInput.files;
     
-    if (files.length > 0) {
-        console.log('파일 처리 시작:', files.length, '개');
+    // 미리보기 매니저에서 정렬된 파일 가져오기 (대표사진이 첫 번째)
+    const sortedFiles = imagePreviewManager.getSortedFiles('userForm');
+    
+    if (sortedFiles.length > 0) {
+        console.log('파일 처리 시작:', sortedFiles.length, '개');
         
         // 파일 개수 제한 (최대 8개)
-        if (files.length > 8) {
+        if (sortedFiles.length > 8) {
             alert('⚠️ 파일은 최대 8개까지 업로드할 수 있습니다.');
             return;
         }
@@ -629,19 +647,19 @@ function addUserPost() {
         uploadProgress.show();
         
         // 각 파일에 대한 프로그레스 항목 추가
-        for (let i = 0; i < files.length; i++) {
+        for (let i = 0; i < sortedFiles.length; i++) {
             const fileId = 'file-' + Date.now() + '-' + i;
-            const isVideo = isVideoFile(files[i]);
-            uploadProgress.addFile(fileId, files[i].name, isVideo);
+            const isVideo = isVideoFile(sortedFiles[i]);
+            uploadProgress.addFile(fileId, sortedFiles[i].name, isVideo);
         }
         
         const promises = [];
         
-        for (let i = 0; i < files.length; i++) {
-            if (isVideoFile(files[i])) {
-                promises.push(compressVideo(files[i]));
+        for (let i = 0; i < sortedFiles.length; i++) {
+            if (isVideoFile(sortedFiles[i])) {
+                promises.push(compressVideo(sortedFiles[i]));
             } else {
-                promises.push(compressImage(files[i]));
+                promises.push(compressImage(sortedFiles[i]));
             }
         }
         
@@ -1479,6 +1497,12 @@ document.addEventListener('DOMContentLoaded', function() {
     if (saveEditButton) {
         saveEditButton.addEventListener('click', saveEditedPost);
     }
+    
+    // 이미지 미리보기 초기화
+    imagePreviewManager.init('adminForm', 'adminImage', 'adminImagePreview');
+    imagePreviewManager.init('userForm', 'userImage', 'userImagePreview');
+    imagePreviewManager.init('adminMaterialForm', 'adminMaterialImage', 'adminMaterialImagePreview');
+    imagePreviewManager.init('userMaterialForm', 'userMaterialImage', 'userMaterialImagePreview');
 });
 
 // 게시글 수정 관련 전역 변수
@@ -1683,3 +1707,156 @@ window.showPostDetail = showPostDetail;
 window.showEditPost = showEditPost;
 window.closeEditModal = closeEditModal;
 window.saveEditedPost = saveEditedPost;
+
+// 이미지 미리보기 관리 객체
+const imagePreviewManager = {
+    previews: new Map(), // formId -> { files: [], selectedIndex: 0, processedData: [] }
+    
+    // 파일 입력 이벤트 핸들러 등록
+    init(formId, inputId, containerId) {
+        const input = document.getElementById(inputId);
+        const container = document.getElementById(containerId);
+        
+        if (!input || !container) return;
+        
+        // 기존 데이터 초기화
+        this.previews.set(formId, {
+            files: [],
+            selectedIndex: 0,
+            processedData: []
+        });
+        
+        input.addEventListener('change', (e) => {
+            this.handleFileChange(formId, e.target.files, containerId);
+        });
+    },
+    
+    // 파일 변경 처리
+    handleFileChange(formId, files, containerId) {
+        const data = this.previews.get(formId) || { files: [], selectedIndex: 0, processedData: [] };
+        data.files = Array.from(files);
+        data.selectedIndex = 0; // 첫 번째 이미지를 기본 대표사진으로
+        data.processedData = [];
+        this.previews.set(formId, data);
+        
+        this.renderPreviews(formId, containerId);
+    },
+    
+    // 미리보기 렌더링
+    renderPreviews(formId, containerId) {
+        const container = document.getElementById(containerId);
+        if (!container) return;
+        
+        const data = this.previews.get(formId);
+        if (!data || data.files.length === 0) {
+            container.innerHTML = '';
+            return;
+        }
+        
+        container.innerHTML = data.files.map((file, index) => {
+            const isVideo = file.type.startsWith('video/');
+            const isSelected = index === data.selectedIndex;
+            const objectUrl = URL.createObjectURL(file);
+            
+            return `
+                <div class="image-preview-item ${isSelected ? 'selected' : ''}" 
+                     onclick="imagePreviewManager.selectImage('${formId}', ${index}, '${containerId}')">
+                    ${isSelected ? '<div class="image-preview-badge">대표</div>' : ''}
+                    <button class="image-preview-remove" 
+                            onclick="event.stopPropagation(); imagePreviewManager.removeImage('${formId}', ${index}, '${containerId}')"
+                            title="삭제">×</button>
+                    ${isVideo ? 
+                        `<video src="${objectUrl}" muted></video>` : 
+                        `<img src="${objectUrl}" alt="미리보기 ${index + 1}">`
+                    }
+                </div>
+            `;
+        }).join('') + 
+        `<div class="image-preview-hint">
+            💡 클릭하여 대표사진을 선택하세요
+        </div>`;
+    },
+    
+    // 이미지 선택
+    selectImage(formId, index, containerId) {
+        const data = this.previews.get(formId);
+        if (!data) return;
+        
+        data.selectedIndex = index;
+        this.previews.set(formId, data);
+        this.renderPreviews(formId, containerId);
+    },
+    
+    // 이미지 삭제
+    removeImage(formId, index, containerId) {
+        const data = this.previews.get(formId);
+        if (!data) return;
+        
+        data.files.splice(index, 1);
+        
+        // 선택된 인덱스 조정
+        if (data.selectedIndex >= data.files.length) {
+            data.selectedIndex = Math.max(0, data.files.length - 1);
+        }
+        
+        this.previews.set(formId, data);
+        this.renderPreviews(formId, containerId);
+        
+        // 파일 입력 업데이트
+        this.updateFileInput(formId, containerId);
+    },
+    
+    // 파일 입력 업데이트
+    updateFileInput(formId, containerId) {
+        const data = this.previews.get(formId);
+        if (!data) return;
+        
+        const inputId = containerId.replace('Preview', '');
+        const input = document.getElementById(inputId);
+        
+        if (input && data.files.length === 0) {
+            input.value = '';
+        }
+    },
+    
+    // 정렬된 파일 배열 가져오기 (대표사진이 첫 번째)
+    getSortedFiles(formId) {
+        const data = this.previews.get(formId);
+        if (!data || data.files.length === 0) return [];
+        
+        const sortedFiles = [...data.files];
+        const selectedFile = sortedFiles.splice(data.selectedIndex, 1)[0];
+        sortedFiles.unshift(selectedFile);
+        
+        return sortedFiles;
+    },
+    
+    // 처리된 데이터 저장 (압축 후)
+    setProcessedData(formId, processedData) {
+        const data = this.previews.get(formId);
+        if (!data) return;
+        
+        data.processedData = processedData;
+        this.previews.set(formId, data);
+    },
+    
+    // 정렬된 처리 데이터 가져오기
+    getSortedProcessedData(formId) {
+        const data = this.previews.get(formId);
+        if (!data || data.processedData.length === 0) return [];
+        
+        const sortedData = [...data.processedData];
+        const selectedData = sortedData.splice(data.selectedIndex, 1)[0];
+        sortedData.unshift(selectedData);
+        
+        return sortedData;
+    },
+    
+    // 초기화
+    clear(formId) {
+        this.previews.delete(formId);
+    }
+};
+
+// 전역 함수 등록
+window.imagePreviewManager = imagePreviewManager;
